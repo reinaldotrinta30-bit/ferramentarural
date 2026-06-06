@@ -5442,8 +5442,16 @@ function processarGeradorSolicitacaoPlanta() {
         <div id="conf_etapa1">
             <h2 style="color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 10px; margin-top: 0; font-size: 20px; background: transparent;">Estruturação do Orçamento</h2>
             <div class="conf-grid-2">
-                <div><label style="font-size:12px; font-weight:bold; color:#555;">Nome Completo do Cliente:</label><input type="text" id="conf_clienteNome" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;"></div>
-                <div><label style="font-size:12px; font-weight:bold; color:#555;">CPF:</label><input type="text" id="conf_clienteCPF" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;" oninput="mascaraCPF(this)"></div>
+                <div>
+                    <label style="font-size:12px; font-weight:bold; color:#555;">Nome Completo do Cliente:</label>
+                    <input type="text" id="conf_clienteNome" list="dl_conf_clientes" oninput="autocompletarConfPorNome()" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;" placeholder="Selecione ou digite...">
+                    <datalist id="dl_conf_clientes"></datalist>
+                </div>
+                <div>
+                    <label style="font-size:12px; font-weight:bold; color:#555;">CPF:</label>
+                    <input type="text" id="conf_clienteCPF" list="dl_conf_cpfs" oninput="mascaraCPF(this); autocompletarConfPorCPF()" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;" placeholder="000.000.000-00">
+                    <datalist id="dl_conf_cpfs"></datalist>
+                </div>
             </div>
             <div class="conf-grid-2" style="margin-top: 10px;">
                 <div><label style="font-size:12px; font-weight:bold; color:#555;">Quantidade de Itens Financiados:</label><input type="number" id="conf_qtdItens" min="1" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;"></div>
@@ -7562,6 +7570,7 @@ function gerarRelatorioCriticas() {
         // A PONTE: Enviando os dados do V49 para a Conferência (Abrindo a Etapa 1)
     function enviarDadosParaConferencia() {
     let sidebar = document.querySelector('.sidebar-menu');
+    atualizarDatalistConferencia();
     if (sidebar) sidebar.style.display = 'none';    
     let nomeCliente = document.getElementById('nome_titular')?.value || "";
     let cpfCliente = document.getElementById('cpf_titular')?.value || "";
@@ -15665,6 +15674,52 @@ function autocompletarProjetista(idNome, idReg, idCpf) {
         
         if (elReg) elReg.value = projetista.reg;
         if (elCpf) elCpf.value = projetista.cpf;
+    }
+}
+
+// =========================================================================
+// AUTOCOMPLETAR CLIENTE/CPF NA CONFERÊNCIA (Puxando de Desembolsos)
+// =========================================================================
+function atualizarDatalistConferencia() {
+    let dlNomes = document.getElementById('dl_conf_clientes');
+    let dlCpfs = document.getElementById('dl_conf_cpfs');
+    if (!dlNomes || !dlCpfs) return;
+
+    dlNomes.innerHTML = "";
+    dlCpfs.innerHTML = "";
+
+    let clientesMap = new Map();
+    // Filtra para não ter nomes duplicados (usa o CPF como chave única)
+    if (typeof dbOpDesemb !== 'undefined') {
+        dbOpDesemb.forEach(r => {
+            if (r.cliente && r.cpf) clientesMap.set(r.cpf, r); 
+        });
+    }
+
+    let arr = Array.from(clientesMap.values());
+    arr.sort((a,b) => a.cliente.localeCompare(b.cliente)).forEach(r => {
+        dlNomes.insertAdjacentHTML('beforeend', `<option value="${r.cliente}">`);
+        dlCpfs.insertAdjacentHTML('beforeend', `<option value="${r.cpf}">${r.cliente}</option>`);
+    });
+}
+
+function autocompletarConfPorNome() {
+    let nome = document.getElementById('conf_clienteNome').value.toUpperCase().trim();
+    if (typeof dbOpDesemb === 'undefined') return;
+    
+    let reg = dbOpDesemb.find(r => (r.cliente || "").toUpperCase() === nome);
+    if (reg && reg.cpf) {
+        document.getElementById('conf_clienteCPF').value = reg.cpf;
+    }
+}
+
+function autocompletarConfPorCPF() {
+    let cpf = document.getElementById('conf_clienteCPF').value;
+    if (cpf.length < 14 || typeof dbOpDesemb === 'undefined') return; // Só busca se o CPF estiver completo
+    
+    let reg = dbOpDesemb.find(r => r.cpf === cpf);
+    if (reg && reg.cliente) {
+        document.getElementById('conf_clienteNome').value = reg.cliente;
     }
 }
 
