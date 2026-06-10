@@ -922,11 +922,12 @@
     <label>Programa / Fonte</label>
     <select id="proj_programa">
         <option value="FNE /RURAL (226)">FNE /RURAL (226)</option>
-        <option value="FNE /PRONAF-COMUM (FNE) (433)">FNE /PRONAF-COMUM (FNE) (433)</option>
-        <option value="FNE /PRONAF A - RES.5.183/24 (699)">FNE /PRONAF A - RES.5.183/24 (699)</option>
-        <option value="FNE /PRONAF MULHER - FNE (406)">FNE /PRONAF MULHER - FNE (406)</option>
-        <option value="FNE /PRONAF JOVEM - FNE (407)">FNE /PRONAF JOVEM - FNE (407)</option>
-        <option value="FNE /PRONAF JOVEM GRUPO A (673)">FNE /PRONAF JOVEM GRUPO A (673)</option>
+        <option value="FNE /PRONAF-COMUM (FNE) (433)">FNE / PRONAF-COMUM (FNE) (433)</option>
+        <option value="FNE /PRONAF A - RES.5.183/24 (699)">FNE / PRONAF A - RES.5.183/24 (699)</option>
+        <option value="FNE /PRONAF MULHER - FNE (406)">FNE / PRONAF MULHER - FNE (406)</option>
+        <option value="FNE /PRONAF JOVEM - FNE (407)">FNE / PRONAF JOVEM - FNE (407)</option>
+        <option value="FNE /PRONAF JOVEM - FNE (407)">FNE / PRONAF MAIS ALIMENTOS - FNE (434)</option>
+        <option value="FNE /PRONAF JOVEM GRUPO A (673)">FNE / PRONAF JOVEM GRUPO A (673)</option>
     </select>
 </div>
         </div>
@@ -2174,11 +2175,11 @@ function acionarGeradorManual() {
     // REGRAS DO PORTE (Para propostas de Investimento e Custeio)
     // ========================================================
     if (porte === 'PRONAF V') {
-        sel.innerHTML = `<option value="FNE /PRONAF-COMUM (FNE) (433)">FNE /PRONAF-COMUM (FNE) (433)</option><option value="FNE /PRONAF MULHER - FNE (406)">FNE /PRONAF MULHER - FNE (406)</option><option value="FNE /PRONAF JOVEM - FNE (407)">FNE /PRONAF JOVEM - FNE (407)</option>`;
+        sel.innerHTML = `<option value="FNE / PRONAF-COMUM (FNE) (433)">FNE / PRONAF-COMUM (FNE) (433)</option><option value="FNE / PRONAF MULHER - FNE (406)">FNE / PRONAF MULHER - FNE (406)</option><option value="FNE /PRONAF JOVEM - FNE (407)">FNE /PRONAF JOVEM - FNE (407)</option><option value="FNE / PRONAF MAIS ALIMENTOS - FNE (434)">FNE / PRONAF MAIS ALIMENTOS - FNE (434)</option>`;
     } else if (porte === 'PRONAF A') {
-        sel.innerHTML = `<option value="FNE /PRONAF A - RES.5.183/24 (699)">FNE /PRONAF A - RES.5.183/24 (699)</option><option value="FNE /PRONAF JOVEM GRUPO A (673)">FNE /PRONAF JOVEM GRUPO A (673)</option>`;
+        sel.innerHTML = `<option value="FNE / PRONAF A - RES.5.183/24 (699)">FNE / PRONAF A - RES.5.183/24 (699)</option><option value="FNE / PRONAF JOVEM GRUPO A (673)">FNE / PRONAF JOVEM GRUPO A (673)</option>`;
     } else {
-        sel.innerHTML = `<option value="FNE /RURAL (226)">FNE /RURAL (226)</option>`;
+        sel.innerHTML = `<option value="FNE / RURAL (226)">FNE / RURAL (226)</option>`;
     }
 }
 
