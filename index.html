@@ -17259,34 +17259,37 @@ if (!firebase.apps.length) {
 const dbNuvem = firebase.database();
  
 // =========================================================================
-// O MOTOR DE AUTO-SAVE (Interceptador do LocalStorage)
+// O MOTOR DE AUTO-SAVE (Interceptador Blindado)
 // =========================================================================
+
+// TRAVA DE SEGURANÇA: Começa bloqueado para impedir que um navegador vazio apague a nuvem!
+let bloqueiaAutoSave = true; 
+
 const originalSetItem = localStorage.setItem;
- 
 localStorage.setItem = function(key, value) {
     // 1º: Salva localmente na memória interna do navegador
     originalSetItem.apply(this, arguments);
-    
+
+    // MÁGICA: Se o sistema ainda está a carregar, ele ABORTA o envio para a nuvem.
+    if (bloqueiaAutoSave) return; 
+
     // 2º: Envia para o Realtime Database na nuvem silenciosamente!
     try {
         let dadosConvertidos = JSON.parse(value);
-        
         if (key === 'bnb_db_contrat_v1' || key === 'bnb_db_contratacoes_v1') {
             dbNuvem.ref('sistema_bnb/contratacoes').set(dadosConvertidos);
         } else if (key === 'bnb_db_op_desemb_v1') {
             dbNuvem.ref('sistema_bnb/desemb_op').set(dadosConvertidos);
         } else if (key === 'bnb_db_ev_desemb_v1') {
             dbNuvem.ref('sistema_bnb/desemb_ev').set(dadosConvertidos);
-        } 
-        // 🛠️ ADICIONADO: Interceptador do Quadro Kanban
-        else if (key === 'kanban_backup_local') {
+        } else if (key === 'kanban_backup_local') {
             dbNuvem.ref('sistema_bnb/kanban_tarefas').set(dadosConvertidos);
         }
     } catch (e) {
         console.error("Erro ao sincronizar com Firebase em segundo plano:", e);
     }
 };
- 
+
 // =========================================================================
 // O MOTOR DE AUTO-LOAD (Ao carregar a página)
 // =========================================================================
@@ -17295,7 +17298,7 @@ window.addEventListener('DOMContentLoaded', () => {
         if (snapshot.exists()) {
             let dadosNuvem = snapshot.val();
             let atualizouAlgo = false;
- 
+
             if (dadosNuvem.contratacoes) {
                 dbContratacoes = dadosNuvem.contratacoes;
                 originalSetItem.call(localStorage, 'bnb_db_contrat_v1', JSON.stringify(dbContratacoes));
@@ -17311,15 +17314,13 @@ window.addEventListener('DOMContentLoaded', () => {
                 originalSetItem.call(localStorage, 'bnb_db_ev_desemb_v1', JSON.stringify(dbEvDesemb));
                 atualizouAlgo = true;
             }
-            // 🛠️ ADICIONADO: Auto-load do Quadro Kanban direto da Nuvem
             if (dadosNuvem.kanban_tarefas) {
                 originalSetItem.call(localStorage, 'kanban_backup_local', JSON.stringify(dadosNuvem.kanban_tarefas));
-                // Dispara o redesenho dos cards na tela se a função existir
                 if (typeof carregarKanbanDoFirebase === 'function') {
                     carregarKanbanDoFirebase();
                 }
             }
- 
+
             if (atualizouAlgo) {
                 if (typeof renderizarTabelaContratacoes === 'function') renderizarTabelaContratacoes();
                 if (typeof atualizarPainelDesembolsos === 'function') atualizarPainelDesembolsos();
@@ -17328,8 +17329,15 @@ window.addEventListener('DOMContentLoaded', () => {
                 console.log("✅ Sistema sincronizado com a nuvem!");
             }
         }
+        
+        // DESTRAVA O SISTEMA: A nuvem já foi lida (ou não tinha nada). Agora é seguro salvar!
+        bloqueiaAutoSave = false; 
+
     }).catch(error => {
         console.warn("⚠️ Sem conexão com a nuvem. Usando dados offline.", error);
+        
+        // Em caso de erro de internet, destrava também para o usuário conseguir usar offline
+        bloqueiaAutoSave = false; 
     });
 });
 
