@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Análise de Projeto - Crédito Rural v80</title>
+    <title>Análise de Projeto - Crédito Rural v90</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.43.0/docxtemplater.js"></script>
     <script src="https://unpkg.com/pizzip@3.1.4/dist/pizzip.js"></script>
     <script src="https://unpkg.com/pizzip@3.1.4/dist/pizzip-utils.js"></script>
@@ -754,94 +754,251 @@
     }
 
     /* ========================================================
-       SISTEMA KANBAN
-       ======================================================== */
-    .kanban-board {
-        display: flex;
-        gap: 20px;
-        height: calc(100vh - 180px); /* Ajusta para caber na tela sem rolar o site todo */
-        align-items: flex-start;
+   NOVO SISTEMA KANBAN (WORKFLOW INTELIGENTE)
+======================================================== */
+.kanban-dashboard-header {
+    display: flex; justify-content: space-between; align-items: center;
+    background: #fff; padding: 15px; border-radius: 6px;
+    border: 1px solid #e0e0e0; margin-bottom: 15px; flex-wrap: wrap; gap: 15px;
+}
+.kanban-filter-controls { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn-filter-kanban {
+    padding: 6px 12px; font-size: 11px; font-weight: bold; border: 1px solid #ccc;
+    background: #fff; color: #555; border-radius: 4px; cursor: pointer; transition: all 0.2s;
+}
+.btn-filter-kanban.active { background: var(--primary-color, #800000); color: white; border-color: var(--primary-color, #800000); }
+
+/* Estrutura do Carrossel Otimizada para Tela Cheia */
+.kanban-carousel-viewport {
+    display: flex; gap: 10px; overflow-x: auto; padding-bottom: 5px;
+    scroll-behavior: smooth; 
+    align-items: stretch; /* MÁGICA 1: Força todas as colunas a terem 100% da altura da tela */
+    flex: 1; min-height: 0; /* Permite que o Flexbox calcule o tamanho sem estourar a tela */
+}
+
+.kanban-coluna-workflow {
+    flex: 0 0 320px; background: #f4f5f7; border-radius: 6px;
+    border-top: 4px solid #800000; padding: 10px; display: flex; flex-direction: column;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.3s ease; 
+    /* Altura 100% já é garantida pelo stretch do pai */
+}
+.kanban-coluna-workflow.focus-single { flex: 1 1 100%; max-width: 100%; }
+
+.kanban-column-title {
+    font-size: 13px;
+    font-weight: bold;
+    color: #333;
+    display: flex;
+    justify-content: space-between; /* Mantém nome na esquerda e botões na direita */
+    align-items: center;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+}
+.kanban-cards-container {
+    flex: 1; /* MÁGICA 2: Empurra o botão "+ NOVO CARD" lá para o final */
+    overflow-y: auto; /* MÁGICA 3: Rolagem acontece APENAS aqui dentro */
+    display: flex; flex-direction: column; gap: 10px; padding-right: 5px;
+    min-height: 0; /* Impede que uma lista gigante quebre a coluna para fora da tela */
+}
+
+/* Cards e Editor Rico (Mantendo a sua genialidade) */
+.kanban-card {
+    background-color: #ffffff; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    display: flex; flex-direction: column; transition: transform 0.1s, box-shadow 0.1s;
+    border-left: 5px solid #ccc; /* Padrão */
+}
+.kanban-card:hover { box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
+.kanban-card.is-dragging { opacity: 0.5; transform: scale(0.95); }
+
+/* Cores de Status */
+.kanban-card.status-vermelho { border-left-color: #d93025 !important; }
+.kanban-card.status-amarelo { border-left-color: #f29900 !important; }
+.kanban-card.status-azul { border-left-color: #1a73e8 !important; }
+.kanban-card.status-verde { border-left-color: #137333 !important; }
+
+.card-drag-handle {
+    padding: 6px 10px; background-color: #f9f9f9; border-radius: 6px 6px 0 0;
+    border-bottom: 1px solid #eee; cursor: grab; color: #aaa; font-size: 14px;
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+}
+.card-drag-handle:active { cursor: grabbing; }
+
+/* Bolinhas de Status e Select no Header do Card */
+.kanban-status-dots { display: flex; gap: 4px; align-items: center; }
+.status-dot { width: 12px; height: 12px; border-radius: 50%; cursor: pointer; border: 1px solid rgba(0,0,0,0.1); transition: transform 0.1s; }
+.status-dot:hover { transform: scale(1.3); }
+.dot-red { background: #d93025; } .dot-yellow { background: #f29900; }
+.dot-blue { background: #1a73e8; } .dot-green { background: #137333; }
+
+.select-route-fast { font-size: 11px; padding: 2px; border: 1px solid #ccc; border-radius: 3px; background: #fff; color: #555; max-width: 95px; }
+.card-delete-btn { background: none; border: none; color: #dc3545; cursor: pointer; font-size: 12px; font-weight: bold; }
+
+.card-editor {
+    padding: 10px; min-height: 60px; outline: none; font-size: 13px;
+    color: #333; line-height: 1.5;
+}
+.card-editor:empty:before { content: "Digite os detalhes aqui..."; color: #aaa; font-style: italic; pointer-events: none; }
+
+/* Garante que o botão não seja esmagado pela lista */
+.btn-add-avulso-column {
+    flex-shrink: 0; /* Proteção anti-esmagamento */
+    width: 100%; background: #fff; border: 1px dashed #ccc; color: #666; padding: 8px; font-size: 11px;
+    font-weight: bold; border-radius: 4px; cursor: pointer; margin-top: 10px; transition: all 0.2s;
+}
+.btn-add-avulso-column:hover { background: #fff3e0; color: #e65100; border-color: #e65100; }
+
+/* ========================================================
+       SCROLLBARS MINIMALISTAS E ELEGANTES (ESTILO macOS)
+    ======================================================== */
+    ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+        background: rgba(0, 0, 0, 0.15);
+        border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: rgba(0, 0, 0, 0.3);
+    }
+    
+    /* Mais fina ainda dentro das colunas */
+    .kanban-cards-container::-webkit-scrollbar {
+        width: 4px;
+    }
+    .kanban-cards-container::-webkit-scrollbar-thumb {
+        background: rgba(0, 0, 0, 0.1);
     }
 
-    .kanban-coluna {
-        flex: 1;
-        background-color: #f4f5f7;
-        border-radius: 8px;
-        min-height: 200px;
-        max-height: 100%;
-        display: flex;
-        flex-direction: column;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-    }
-
-    .kanban-coluna-header {
-        padding: 12px 15px;
-        font-weight: bold;
-        color: #333;
-        border-top: 4px solid #ccc;
-        border-radius: 8px 8px 0 0;
-        display: flex;
-        justify-content: space-between;
-    }
-
-    .kanban-cards-container {
-        padding: 10px;
-        flex: 1;
-        overflow-y: auto;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-    }
-
+    /* ========================================================
+       FEEDBACK VISUAL DE ARRASTO VERTICAL (A LINHA FINA)
+    ======================================================== */
     .kanban-card {
-        background-color: #ffffff;
-        border-radius: 6px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.12);
-        display: flex;
-        flex-direction: column;
-        transition: transform 0.1s, box-shadow 0.1s;
+        transition: transform 0.15s ease, box-shadow 0.15s ease, border-top 0.15s ease, border-bottom 0.15s ease;
+    }
+    /* Linha sutil indicando inserção acima */
+    .kanban-card.drag-over-top {
+        border-top: 3px solid var(--primary-color, #800000) !important;
+        margin-top: 5px; /* Abre um espacinho suave */
+    }
+    /* Linha sutil indicando inserção abaixo */
+    .kanban-card.drag-over-bottom {
+        border-bottom: 3px solid var(--primary-color, #800000) !important;
+        margin-bottom: 5px; /* Abre um espacinho suave */
     }
 
-    .kanban-card:hover {
-        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-    }
-
-    .kanban-card.is-dragging {
-        opacity: 0.5;
-        transform: scale(0.95);
-    }
-
-    /* O PUXADOR: A única parte onde o usuário consegue segurar para arrastar */
-    .card-drag-handle {
-        padding: 4px 10px;
-        background-color: #f9f9f9;
-        border-radius: 6px 6px 0 0;
-        border-bottom: 1px solid #eee;
-        cursor: grab;
-        color: #aaa;
-        font-size: 14px;
-        display: flex;
-        justify-content: space-between;
+    /* ========================================================
+       EFEITO DE COLUNA MINIMIZADA (ABA NOTAS)
+    ======================================================== */
+    .kanban-coluna-workflow.is-minimized {
+        flex: 0 0 45px !important; /* Encolhe para a largura de um ícone */
+        padding: 10px 5px !important;
+        cursor: pointer;
+        overflow: hidden;
         align-items: center;
     }
-    .card-drag-handle:active { cursor: grabbing; }
-
-    .card-delete-btn {
-        background: none; border: none; color: #dc3545; cursor: pointer; font-size: 12px; font-weight: bold;
+    .kanban-coluna-workflow.is-minimized .normal-view {
+        display: none !important; /* Esconde o cabeçalho normal e as tarefas */
     }
-
-    /* O CORPO DO CARD: Área de edição rica */
-    .card-editor {
-        padding: 10px;
-        min-height: 60px;
-        outline: none;
+    .kanban-coluna-workflow.is-minimized .minimized-view {
+        display: flex !important; /* Mostra o ícone e o texto vertical */
+    }
+    .minimized-view {
+        flex-direction: column;
+        align-items: center;
+        height: 100%;
+        color: #455a64;
+        font-weight: bold;
+        letter-spacing: 3px;
+        opacity: 0.7;
+        transition: opacity 0.2s;
+    }
+    .minimized-view:hover {
+        opacity: 1;
+    }
+    .minimized-text {
+        writing-mode: vertical-rl; /* Coloca o texto na vertical */
+        transform: rotate(180deg); /* Deixa a leitura de cima para baixo */
+        margin-top: 15px;
         font-size: 13px;
-        color: #333;
-        line-height: 1.5;
     }
-    .card-editor:empty:before {
-        content: "Digite os detalhes aqui..."; color: #aaa; font-style: italic; pointer-events: none;
+
+    /* ========================================================
+       DATA DE MODIFICAÇÃO SUTIL NO CARD
+    ======================================================== */
+    .card-date-input {
+        border: none;
+        background: transparent;
+        color: #a0a0a0;
+        font-size: 10px;
+        font-weight: bold;
+        outline: none;
+        cursor: pointer;
+        padding: 0;
+        margin-right: 5px;
+        font-family: monospace;
     }
+    .card-date-input::-webkit-calendar-picker-indicator {
+        cursor: pointer;
+        opacity: 0.5;
+        padding: 2px;
+    }
+    .card-date-input:hover {
+        color: var(--primary-color, #800000);
+    }
+
+    /* ========================================================
+       SISTEMA DE NOTIFICAÇÕES E LEMBRETES (MINI-CARDS)
+    ======================================================== */
+    .btn-lembrete-icon {
+        background: transparent; border: none; cursor: pointer;
+        opacity: 0.5; transition: 0.2s; font-size: 11px; padding: 0 4px;
+    }
+    .btn-lembrete-icon:hover { opacity: 1; transform: scale(1.3); }
+    
+    #kanban_notifications_wrapper {
+        display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px;
+    }
+    .notif-mini-card {
+        background: #fff9c4; border-left: 4px solid #fbc02d; 
+        border-radius: 4px; padding: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .notif-mini-card.stagnant {
+        background: #ffebee; border-left: 4px solid #e53935;
+    }
+    .notif-header {
+        font-size: 11px; font-weight: bold; color: #555; 
+        display: flex; justify-content: space-between; margin-bottom: 5px;
+    }
+    .notif-body {
+        font-size: 12px; color: #333; margin-bottom: 8px; line-height: 1.4;
+        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .notif-actions { display: flex; gap: 8px; }
+    .btn-notif {
+        padding: 4px 8px; font-size: 10px; font-weight: bold; 
+        border-radius: 3px; cursor: pointer; border: none; transition: 0.2s;
+    }
+    .btn-notif-verify { background: var(--primary-color, #800000); color: #fff; }
+    .btn-notif-dismiss { background: #e0e0e0; color: #555; }
+    .btn-notif:hover { filter: brightness(0.9); }
+
+    /* Efeito Piscar (Quando clica em Verificar) */
+    .card-highlight-pulse { animation: kanban-pulse 1.5s ease-in-out 3; }
+    @keyframes kanban-pulse {
+        0%, 100% { box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+        50% { box-shadow: 0 0 15px var(--primary-color, #800000); transform: scale(1.02); }
+    }
+    
+    /* Sino animado quando a aba notas está minimizada e tem alerta */
+    .kanban-coluna-workflow.has-notifications .minimized-view span::after {
+        content: '🔔'; position: absolute; margin-left: -5px; margin-top: -10px;
+        font-size: 12px; animation: pulse-bell 1s infinite alternate;
+    }
+    @keyframes pulse-bell { 0% { transform: scale(1); } 100% { transform: scale(1.3); } }
 
 /* ========================================================
    REESTRUTURAÇÃO ÚNICA E DEFINITIVA PARA MOBILE (Até 768px)
@@ -1036,7 +1193,7 @@
         <h1>FERRAMENTA DE APOIO RURAL</h1>
         <div style="text-align: right; line-height: 1.4;">
             <strong style="font-size: 13px; color: var(--primary-color);">By: Reinaldo Trinta</strong><br>
-            <span style="font-size: 12px; color: var(--support-gray);">Protótipo v80 - BNB</span>
+            <span style="font-size: 12px; color: var(--support-gray);">Protótipo v90 - BNB</span>
         </div>
     </header>
 
@@ -5943,62 +6100,156 @@ function processarGeradorSolicitacaoPlanta() {
             <button onclick="document.getElementById('modal_kanban_tarefas').style.display='none'" style="background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.4); color: white; padding: 6px 15px; border-radius: 4px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">
                 <span>⬅️</span> VOLTAR AO PAINEL
             </button>
-            <span style="font-size: 16px; font-weight: bold; text-transform: uppercase;">📋 QUADRO DE TAREFAS - KANBAN</span>
+            <span style="font-size: 16px; font-weight: bold; text-transform: uppercase;">📋 QUADRO DE TAREFAS</span>
         </div>
         <div></div>
     </div>
 
-    <div style="flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column;">
+    <div style="flex: 1; padding: 10px 5px 10px 10px; overflow: hidden; display: flex; flex-direction: column; gap: 10px;">
         
-        <div class="notas-toolbar" style="margin-bottom: 20px; border-radius: 6px; border: 1px solid #e0e0e0; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <button onmousedown="event.preventDefault(); document.execCommand('bold', false, null)" title="Negrito"><b>B</b></button>
-            <button onmousedown="event.preventDefault(); document.execCommand('italic', false, null)" title="Itálico"><i>I</i></button>
-            <button onmousedown="event.preventDefault(); document.execCommand('underline', false, null)" title="Sublinhado"><u>U</u></button>
-            <button onmousedown="event.preventDefault(); document.execCommand('strikeThrough', false, null)" title="Tachado"><s>S</s></button>
+        <div class="notas-toolbar" style="margin-bottom: 10px; border-radius: 6px; border: 1px solid #e0e0e0; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.05); padding: 6px 12px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
             
-            <div class="toolbar-divisor"></div>
-            
-            <div class="color-dropdown">
-                <button title="Grifar Texto">🖍️ ▼</button>
-                <div class="color-dropdown-content">
-                    <button class="color-swatch" style="background-color: #fff3cd;" onmousedown="event.preventDefault(); document.execCommand('hiliteColor', false, '#fff3cd')"></button>
-                    <button class="color-swatch" style="background-color: #f8d7da;" onmousedown="event.preventDefault(); document.execCommand('hiliteColor', false, '#f8d7da')"></button>
-                    <button class="color-swatch" style="background-color: #e2e3e5;" onmousedown="event.preventDefault(); document.execCommand('hiliteColor', false, '#e2e3e5')"></button>
+            <div style="display: flex; align-items: center; gap: 2px;">
+                <button onmousedown="event.preventDefault(); document.execCommand('bold', false, null)" title="Negrito"><b>B</b></button>
+                <button onmousedown="event.preventDefault(); document.execCommand('italic', false, null)" title="Itálico"><i>I</i></button>
+                <button onmousedown="event.preventDefault(); document.execCommand('underline', false, null)" title="Sublinhado"><u>U</u></button>
+                <button onmousedown="event.preventDefault(); document.execCommand('strikeThrough', false, null)" title="Tachado"><s>S</s></button>
+                
+                <div class="toolbar-divisor"></div>
+                
+                <div class="color-dropdown">
+                    <button title="Grifar Texto">🖍️ ▼</button>
+                    <div class="color-dropdown-content">
+                        <button class="color-swatch" style="background-color: #fff3cd;" onmousedown="event.preventDefault(); document.execCommand('hiliteColor', false, '#fff3cd')"></button>
+                        <button class="color-swatch" style="background-color: #f8d7da;" onmousedown="event.preventDefault(); document.execCommand('hiliteColor', false, '#f8d7da')"></button>
+                        <button class="color-swatch" style="background-color: #e2e3e5;" onmousedown="event.preventDefault(); document.execCommand('hiliteColor', false, '#e2e3e5')"></button>
+                    </div>
+                </div>
+                
+                <button onmousedown="event.preventDefault(); document.execCommand('foreColor', false, '#800000')" title="Texto em Destaque">🅰️</button>
+                <button onmousedown="event.preventDefault(); document.execCommand('removeFormat', false, null)" title="Remover Formatações">✖️</button> 
+                
+                <div class="toolbar-divisor"></div>
+                
+                <div class="list-dropdown">
+                    <button title="Listas">≣ ▼</button>
+                    <div class="list-dropdown-content">
+                        <button onmousedown="event.preventDefault(); document.execCommand('insertUnorderedList', false, null)">• Marcadores</button>
+                        <button onmousedown="event.preventDefault(); document.execCommand('insertOrderedList', false, null)">1. Numeração</button>
+                    </div>
                 </div>
             </div>
-            
-            <button onmousedown="event.preventDefault(); document.execCommand('foreColor', false, '#800000')" title="Texto em Destaque">🅰️</button>
-            <button onmousedown="event.preventDefault(); document.execCommand('removeFormat', false, null)" title="Remover Formatações">✖️</button> 
-            
-            <div class="toolbar-divisor"></div>
-            
-            <div class="list-dropdown">
-                <button title="Listas">≣ ▼</button>
-                <div class="list-dropdown-content">
-                    <button onmousedown="event.preventDefault(); document.execCommand('insertUnorderedList', false, null)">• Marcadores</button>
-                    <button onmousedown="event.preventDefault(); document.execCommand('insertOrderedList', false, null)">1. Numeração</button>
-                </div>
+
+            <div class="kanban-search-box" style="flex: 1; min-width: 200px; max-width: 400px; margin: 0 15px;">
+                <input type="text" id="kanban_search_input" oninput="pesquisarCardsKanban()" placeholder="🔍 Pesquisar tarefa, cliente, nota ou CPF..." style="width: 100%; padding: 8px 15px; border: 1px solid #ccc; border-radius: 20px; font-size: 12px; outline: none; background: #f9f9f9; transition: all 0.3s;" onfocus="this.style.background='#fff'; this.style.borderColor='var(--primary-color)';" onblur="this.style.background='#f9f9f9'; this.style.borderColor='#ccc';">
             </div>
             
-            <div style="flex-grow: 1;"></div>
-            <button onclick="adicionarCardKanban('coluna_fazer')" style="background: #800000; color: white; padding: 6px 16px; border-radius: 4px; font-weight: bold; cursor: pointer;">+ Novo Card</button>
+            <div class="kanban-filter-controls" style="display: flex; gap: 5px;">
+                <button class="btn-filter-kanban active" id="btn_filter_all" onclick="filtrarVisualizacaoColunas('TODOS', this)">👁️ VER TODAS</button>
+                <button class="btn-filter-kanban" onclick="filtrarVisualizacaoColunas('NOTAS', this)">📌 NOTAS</button>
+                <button class="btn-filter-kanban" onclick="filtrarVisualizacaoColunas('CADASTROS', this)">CADASTROS</button>
+                <button class="btn-filter-kanban" onclick="filtrarVisualizacaoColunas('PCE', this)">PCE</button>
+                <button class="btn-filter-kanban" onclick="filtrarVisualizacaoColunas('S522', this)">S522/CENTRAL</button>
+                <button class="btn-filter-kanban" onclick="filtrarVisualizacaoColunas('CONTRATOS', this)">CONTRATOS</button>
+                <button class="btn-filter-kanban" onclick="filtrarVisualizacaoColunas('DESEMBOLSOS', this)">DESEMBOLSOS</button>
+                <button class="btn-filter-kanban" onclick="filtrarVisualizacaoColunas('ACOMPANHAMENTO', this)">ACOMPANHAMENTO</button>
+            </div>
         </div>
+        
+        <div class="kanban-carousel-viewport" id="kanban_workflow_carousel" style="flex: 1; min-height: 0;">
+            
+            <div class="kanban-coluna-workflow" id="coluna_notas" data-etapa="NOTAS" style="border-top-color: #455a64;" ondrop="soltarCardWorkflow(event, 'NOTAS')" ondragover="permitirSoltar(event)">
+                
+                <div class="kanban-column-title normal-view">
+                    <span style="color: #455a64;">📌 NOTAS / LEMBRETES</span> 
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                     <button onclick="criarCardAvulsoWorkflow('NOTAS')" style="background: none; border: none; color: #607d8b; font-weight: bold; font-size: 16px; cursor: pointer; padding: 0 5px; transition: transform 0.1s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'" title="Adicionar Card">+</button>
+    
+                        <span class="card-count" id="count_notas" style="margin-right: 5px;">0</span>
+    
+                            <button onclick="toggleMinimizarNotas()" 
+    style="background: none; border: none; color: #455a64; font-weight: bold; font-size: 20px; cursor: pointer; padding: 0 5px; transition: transform 0.1s; margin-top: -3px; line-height: 0; vertical-align: middle;" 
+    onmouseover="this.style.transform='scale(1.2)'" 
+    onmouseout="this.style.transform='scale(1)'" 
+    title="Minimizar Aba">«</button>
+                            </div>
+                </div>
+                <div class="kanban-cards-container normal-view" id="list_notas"></div>
 
-        <div class="kanban-board" style="flex: 1;">
-            <div class="kanban-coluna" id="coluna_fazer" ondrop="soltarCard(event)" ondragover="permitirSoltar(event)">
-                <div class="kanban-coluna-header" style="border-top-color: #ff9800;">A Fazer / Prospectar <span class="card-count">0</span></div>
-                <div class="kanban-cards-container"></div>
+                <div class="minimized-view" style="display: none;" onclick="toggleMinimizarNotas()" title="Clique para Expandir as Notas">
+                    <span style="font-size: 16px;">📌</span>
+                    <div class="minimized-text">NOTAS / LEMBRETES</div>
+                </div>
             </div>
 
-            <div class="kanban-coluna" id="coluna_andamento" ondrop="soltarCard(event)" ondragover="permitirSoltar(event)">
-                <div class="kanban-coluna-header" style="border-top-color: #2196f3;">Em Andamento / Análise <span class="card-count">0</span></div>
-                <div class="kanban-cards-container"></div>
+            <div id="separador_notas" style="width: 2px; background: #e0e0e0; align-self: stretch; margin: 5px 0; flex-shrink: 0;"></div>
+
+            <div class="kanban-coluna-workflow" data-etapa="CADASTROS" style="border-top-color: #607d8b;" ondrop="soltarCardWorkflow(event, 'CADASTROS')" ondragover="permitirSoltar(event)">
+                <div class="kanban-column-title">
+                    <span>📂 CADASTROS</span> 
+                    <div>
+                        <button onclick="criarCardAvulsoWorkflow('CADASTROS')" style="background: none; border: none; color: #607d8b; font-weight: bold; font-size: 16px; cursor: pointer; padding: 0 5px; transition: transform 0.1s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'" title="Adicionar Card nesta etapa">+</button>
+                        <span class="card-count" id="count_cadastros">0</span>
+                    </div>
+                </div>
+                <div class="kanban-cards-container" id="list_cadastros"></div>
             </div>
 
-            <div class="kanban-coluna" id="coluna_concluido" ondrop="soltarCard(event)" ondragover="permitirSoltar(event)">
-                <div class="kanban-coluna-header" style="border-top-color: #4caf50;">Concluído / Aprovado <span class="card-count">0</span></div>
-                <div class="kanban-cards-container"></div>
+            <div class="kanban-coluna-workflow" data-etapa="PCE" style="border-top-color: #e65100;" ondrop="soltarCardWorkflow(event, 'PCE')" ondragover="permitirSoltar(event)">
+                <div class="kanban-column-title">
+                    <span>⚡ PCE (SOLICITAÇÕES)</span> 
+                    <div>
+                        <button onclick="criarCardAvulsoWorkflow('PCE')" style="background: none; border: none; color: #e65100; font-weight: bold; font-size: 16px; cursor: pointer; padding: 0 5px; transition: transform 0.1s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'" title="Adicionar Card nesta etapa">+</button>
+                        <span class="card-count" id="count_pce">0</span>
+                    </div>
+                </div>
+                <div class="kanban-cards-container" id="list_pce"></div>
             </div>
+
+            <div class="kanban-coluna-workflow" data-etapa="S522" style="border-top-color: #1a73e8;" ondrop="soltarCardWorkflow(event, 'S522')" ondragover="permitirSoltar(event)">
+                <div class="kanban-column-title">
+                    <span>🏛️ S522 / CENTRAL</span> 
+                    <div>
+                        <button onclick="criarCardAvulsoWorkflow('S522')" style="background: none; border: none; color: #1a73e8; font-weight: bold; font-size: 16px; cursor: pointer; padding: 0 5px; transition: transform 0.1s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'" title="Adicionar Card nesta etapa">+</button>
+                        <span class="card-count" id="count_s522">0</span>
+                    </div>
+                </div>
+                <div class="kanban-cards-container" id="list_s522"></div>
+            </div>
+
+            <div class="kanban-coluna-workflow" data-etapa="CONTRATOS" style="border-top-color: #9c27b0;" ondrop="soltarCardWorkflow(event, 'CONTRATOS')" ondragover="permitirSoltar(event)">
+                <div class="kanban-column-title">
+                    <span>📝 CONTRATOS / RENOVAÇÕES</span> 
+                    <div>
+                        <button onclick="criarCardAvulsoWorkflow('CONTRATOS')" style="background: none; border: none; color: #9c27b0; font-weight: bold; font-size: 16px; cursor: pointer; padding: 0 5px; transition: transform 0.1s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'" title="Adicionar Card nesta etapa">+</button>
+                        <span class="card-count" id="count_contratos">0</span>
+                    </div>
+                </div>
+                <div class="kanban-cards-container" id="list_contratos"></div>
+            </div>
+
+            <div class="kanban-coluna-workflow" data-etapa="DESEMBOLSOS" style="border-top-color: #7a1231;" ondrop="soltarCardWorkflow(event, 'DESEMBOLSOS')" ondragover="permitirSoltar(event)">
+                <div class="kanban-column-title">
+                    <span>💸 DESEMBOLSOS</span> 
+                    <div>
+                        <button onclick="criarCardAvulsoWorkflow('DESEMBOLSOS')" style="background: none; border: none; color: #7a1231; font-weight: bold; font-size: 16px; cursor: pointer; padding: 0 5px; transition: transform 0.1s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'" title="Adicionar Card nesta etapa">+</button>
+                        <span class="card-count" id="count_desembolsos">0</span>
+                    </div>
+                </div>
+                <div class="kanban-cards-container" id="list_desembolsos"></div>
+            </div>
+
+            <div class="kanban-coluna-workflow" data-etapa="ACOMPANHAMENTO" style="border-top-color: #137333;" ondrop="soltarCardWorkflow(event, 'ACOMPANHAMENTO')" ondragover="permitirSoltar(event)">
+                <div class="kanban-column-title">
+                    <span>📈 ACOMPANHAMENTO</span> 
+                    <div>
+                        <button onclick="criarCardAvulsoWorkflow('ACOMPANHAMENTO')" style="background: none; border: none; color: #137333; font-weight: bold; font-size: 16px; cursor: pointer; padding: 0 5px; transition: transform 0.1s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'" title="Adicionar Card nesta etapa">+</button>
+                        <span class="card-count" id="count_acompanhamento">0</span>
+                    </div>
+                </div>
+                <div class="kanban-cards-container" id="list_acompanhamento"></div>
+            </div>
+
         </div>
     </div>
 </div>
@@ -6138,7 +6389,7 @@ function processarGeradorSolicitacaoPlanta() {
   </div>
 </div>
 
-<div id="conf_modalRelatorio" class="modal-overlay" style="display: none;">
+<div id="conf_modalRelatorio" class="modal-overlay" style="display: none; z-index: 9999999;">
   <div class="modal-box" style="width: 800px;">
     <div class="modal-header"><span>📊 Relatório da Conferência</span><button class="modal-close" onclick="conf_fecharModalRelatorio()">&times;</button></div>
     <div class="modal-body" id="conf_conteudoRelatorio"></div>
@@ -7917,6 +8168,17 @@ function processarGeradorSolicitacaoPlanta() {
         </div>
         <div class="modal-body" style="padding: 20px;">
             
+            <div class="grid" style="grid-template-columns: 2fr 1fr;">
+                <div class="form-group">
+                    <label>Nome Completo do Cliente</label>
+                    <input type="text" id="av_desemb_nome" placeholder="Ex: JOÃO DA SILVA">
+                </div>
+                <div class="form-group">
+                    <label>CPF</label>
+                    <input type="text" id="av_desemb_cpf" placeholder="000.000.000-00" oninput="mascaraCPF(this)">
+                </div>
+            </div>
+ 
             <div class="form-group" style="max-width: 300px;">
                 <label>Tipo da Proposta</label>
                 <select id="av_desemb_tipo" style="border-color: var(--accent-color);">
@@ -7924,19 +8186,88 @@ function processarGeradorSolicitacaoPlanta() {
                     <option value="Custeio">Custeio</option>
                 </select>
             </div>
-
+ 
             <strong style="color: var(--primary-color); font-size: 13px; display: block; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-top: 20px; margin-bottom: 15px;">1. IMÓVEIS VINCULADOS AO DESEMBOLSO</strong>
             <div id="av_desemb_container_imoveis"></div>
-            <button class="btn-clear" style="font-size: 12px; padding: 10px; width: 100%; background: #f8f9fa;" onclick="adicionarImovelAvulsoDesemb()">+ ADICIONAR IMÓVEL</button>
-
+            <button class="btn-clear" style="font-size: 12px; padding: 10px 15px; background-color: #fff3e0; color: #e65100; border: 1px dashed #e65100; font-weight: bold; border-radius: 4px; cursor: pointer; display: block; width: 100%; margin-bottom: 15px;" onclick="adicionarImovelAvulsoDesemb()">+ ADICIONAR IMÓVEL</button>
+ 
             <strong style="color: var(--primary-color); font-size: 13px; display: block; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-top: 25px; margin-bottom: 15px;">2. ITENS A FINANCIAR / CUSTEAR</strong>
-            <div id="av_desemb_container_itens"></div>
-            <button class="btn-clear" style="font-size: 12px; padding: 10px; width: 100%; background: #f8f9fa;" onclick="adicionarItemAvulsoDesemb()">+ ADICIONAR ITEM</button>
             
+            <div class="table-header" style="display:flex; font-size:13px; font-weight:bold; color:var(--primary-color); margin-bottom:10px;">
+<div style="flex:2;">Descrição</div><div style="flex:1;">Qtdd</div>
+<div style="flex:1;">Valor Unit. (R$)</div><div style="flex:1;">Valor Total (R$)</div><div style="width:30px;"></div>
+</div>
+ 
+<div id="av_desemb_container_itens"></div>
+ 
+<button class="btn-clear" style="font-size: 12px; padding: 10px 15px; background-color: #fff3e0; color: #e65100; border: 1px dashed #e65100; font-weight: bold; border-radius: 4px; cursor: pointer; display: block; width: 100%; margin-bottom: 15px;" onclick="adicionarItemAvulsoDesemb()">+ ADICIONAR ITEM</button>
+            
+            <div style="text-align: right; margin-top: 15px; font-size: 15px;">
+                <strong style="color:var(--primary-color);">VALOR TOTAL DO ORÇAMENTO: R$ <span id="av_desemb_total_orcamento">0,00</span></strong>
+            </div>
+ 
         </div>
         <div class="modal-footer" style="background: #f1f1f1;">
             <button class="btn-clear" onclick="document.getElementById('modal_avulso_desembolso').style.display='none'">Cancelar</button>
             <button class="btn-save" onclick="confirmarDesembolsoAvulso()">Confirmar e Iniciar Análise</button>
+        </div>
+    </div>
+</div>
+
+<div id="modal_escolha_socio" class="modal-overlay" style="display: none; z-index: 99999;">
+    <div class="modal-box" style="max-width: 450px; text-align: center;">
+        <div class="modal-header">
+            <span>⚙️ MODO DE ANÁLISE SOCIOAMBIENTAL</span>
+            <button class="modal-close" onclick="document.getElementById('modal_escolha_socio').style.display='none'">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 30px 20px;">
+            <h4 style="color: var(--primary-color); margin-top: 0; margin-bottom: 5px; font-size: 16px;">ANÁLISE SOCIOAMBIENTAL</h4>
+            <p style="font-size: 13px; color: var(--support-gray); margin-bottom: 25px;">Como deseja preencher os dados desta análise?</p>
+            
+            <button class="btn-save" style="width: 100%; margin-bottom: 15px; padding: 15px; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 10px;" onclick="acionarSocioAuto()">
+                <span style="font-size: 18px;">⚡</span> IMPORTAR DO PROJETO ATUAL
+            </button>
+            
+            <button class="btn-clear" style="width: 100%; padding: 15px; font-size: 13px; background: white; color: var(--primary-color); border: 2px solid var(--primary-color); display: flex; align-items: center; justify-content: center; gap: 10px;" onclick="abrirModalAvulsoSocio()">
+                <span style="font-size: 18px;">✍️</span> PREENCHER ANÁLISE AVULSA
+            </button>
+        </div>
+    </div>
+</div>
+ 
+<div id="modal_avulso_socio" class="modal-overlay" style="display: none; z-index: 99999;">
+    <div class="modal-box" style="max-width: 800px;">
+        <div class="modal-header">
+            <span>✍️ PREENCHIMENTO AVULSO - SOCIOAMBIENTAL</span>
+            <button class="modal-close" onclick="document.getElementById('modal_avulso_socio').style.display='none'">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 20px;">
+            
+            <div class="grid" style="grid-template-columns: 1fr 1fr;">
+                <div class="form-group">
+                    <label>Tipo de Proposta</label>
+                    <input type="text" id="av_socio_tipo" list="lista_tipos_socio" placeholder="Ex: Investimento, Custeio...">
+                    <datalist id="lista_tipos_socio">
+                        <option value="Investimento">
+                        <option value="Custeio">
+                        <option value="LCGH">
+                        <option value="LCGA">
+                    </datalist>
+                </div>
+                <div class="form-group">
+                    <label>Valor da Proposta (R$)</label>
+                    <input type="text" id="av_socio_valor" placeholder="Ex: 100.000,00" oninput="mascaraMoeda(this)">
+                </div>
+            </div>
+ 
+            <strong style="color: var(--primary-color); font-size: 13px; display: block; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-top: 20px; margin-bottom: 15px;">IMÓVEIS RURAIS DA ANÁLISE</strong>
+            <div id="av_socio_container_imoveis"></div>
+            <button class="btn-clear" style="font-size: 12px; padding: 10px 15px; background-color: #fff3e0; color: #e65100; border: 1px dashed #e65100; font-weight: bold; border-radius: 4px; cursor: pointer; display: block; width: 100%; margin-top: 10px;" onclick="adicionarImovelAvulsoSocio()">+ ADICIONAR IMÓVEL</button>
+            
+        </div>
+        <div class="modal-footer" style="background: #f1f1f1;">
+            <button class="btn-clear" onclick="document.getElementById('modal_avulso_socio').style.display='none'">Cancelar</button>
+            <button class="btn-save" onclick="confirmarSocioAvulso()">Confirmar e Iniciar Análise</button>
         </div>
     </div>
 </div>
@@ -8429,49 +8760,131 @@ function gerarRelatorioCriticas() {
     }
 
         // A PONTE: Enviando os dados do V49 para a Conferência (Abrindo a Etapa 1)
-    function enviarDadosParaConferencia() {
-    let sidebar = document.querySelector('.sidebar-menu');
-    atualizarDatalistConferencia();
-    if (sidebar) sidebar.style.display = 'none';    
-    let nomeCliente = document.getElementById('nome_titular')?.value || "";
-    let cpfCliente = document.getElementById('cpf_titular')?.value || "";
-    let qtdItens = typeof projItensIds !== 'undefined' ? projItensIds.length : 0;
+function enviarDadosParaConferencia() {
+    
+    // 💡 A MÁGICA DOS DADOS: PREPARAÇÃO E HOOK CIRÚRGICO!
+    let itIds = getDesembItens();
+    window.projItensIds = itIds; // Sincroniza a variável global
  
-    document.getElementById('conf_clienteNome').value = nomeCliente;
-    document.getElementById('conf_clienteCPF').value = cpfCliente;
-    document.getElementById('conf_qtdItens').value = qtdItens;
+    if (modoDesembolso === 'AVULSO') {
+        // Limpa resquícios antigos
+        document.querySelectorAll('.temp-avulso-input').forEach(e => e.remove());
+        
+        // Função cirúrgica: Sobrescreve o original ou cria um fantasma no TOPO do HTML
+        const forcarValor = (idCampo, valor) => {
+            let campoReal = document.getElementById(idCampo);
+            if (campoReal) {
+                campoReal.value = valor; // Injeta o valor na caixa original à força!
+            } else {
+                let fantasma = document.createElement('input');
+                fantasma.type = 'hidden';
+                fantasma.id = idCampo;
+                fantasma.className = 'temp-avulso-input';
+                fantasma.value = valor;
+                document.body.prepend(fantasma);
+            }
+        };
  
-    document.querySelector('body > .container').style.display = 'none';
-    document.getElementById('modulo_conferencia').style.display = 'block';
-    window.scrollTo(0,0);
+        // 🎯 AQUI RESOLVEMOS O ALERTA LARANJA!
+        // Pegamos o total do rodapé do modal avulso e forçamos o sistema a achar que é o "Valor da Proposta"
+        let totalAvulso = document.getElementById('av_desemb_total_orcamento')?.innerText || "0,00";
+        forcarValor('proj_valor_prop', totalAvulso);
  
-    // Usa a memória: Se o projeto foi importado e ele estava na Etapa 3, abre direto nela!
-    let etapaAlvo = dadosConf.etapaAtual || 1;
-    if (etapaAlvo === 3 && dadosConf.qtdParcelas > 0) {
-        conf_mostrarEtapa(3);
-        conf_gerarAbasParcelas();
-        conf_abrirParcela(conf_abaAtiva || 0); // Fica na aba que o usuário estava
-    } else {
-        conf_mostrarEtapa(etapaAlvo);
+        // Prepara os dados de cada item
+        itIds.forEach(id => {
+            let desc = document.getElementById(`av_desemb_item_desc_${id}`)?.value || "";
+            let vt = document.getElementById(`av_desemb_item_vt_${id}`)?.value || "0,00";
+            let qtd = document.getElementById(`av_desemb_item_qtd_${id}`)?.value || "0";
+            
+            forcarValor(`proj_item_desc_${id}`, desc);
+            forcarValor(`proj_item_vt_${id}`, vt);
+            forcarValor(`proj_item_qtd_${id}`, qtd);
+        });
+ 
+        // =====================================================================
+        // 2. O HOOK DE TELA: Intercepta o desenho da Etapa 2 para forçar os nomes!
+        // =====================================================================
+        if (typeof conf_gerarCamposOrcamento === 'function' && !window.hookOrcamentoAplicado) {
+            const funcaoOriginal = conf_gerarCamposOrcamento;
+            window.conf_gerarCamposOrcamento = function(isImport) {
+                
+                // Primeiro, deixamos o sistema desenhar "Item 1, Item 2..." normalmente
+                funcaoOriginal(isImport);
+                
+                // Assim que ele termina, nós sobrescrevemos visualmente com as descrições manuais!
+                if (modoDesembolso === 'AVULSO') {
+                    let avIds = getDesembItens();
+                    for (let i = 0; i < avIds.length; i++) {
+                        let idReal = avIds[i];
+                        let descManual = document.getElementById(`av_desemb_item_desc_${idReal}`)?.value;
+                        let descFinal = (descManual && descManual.trim() !== "") ? descManual : `Item ${i+1}`;
+                        
+                        let caixaConf = document.getElementById(`conf_nome${i}`);
+                        if (caixaConf) {
+                            caixaConf.value = descFinal;
+                        }
+                    }
+                }
+            };
+            window.hookOrcamentoAplicado = true; // Garante que não duplica o gancho
+        }
     }
-
-    // --- DESPERTADOR DAS PARCELAS (Garante que os meses abram na importação) ---
+ 
+    if (typeof atualizarDatalistConferencia === 'function') atualizarDatalistConferencia();
+    
+    // 3. Atualização dos Dados Básicos
+    let nomeCliente = modoDesembolso === 'AVULSO' ? document.getElementById('av_desemb_nome')?.value : document.getElementById('nome_titular')?.value;
+    let cpfCliente = modoDesembolso === 'AVULSO' ? document.getElementById('av_desemb_cpf')?.value : document.getElementById('cpf_titular')?.value;
+    let qtdItens = itIds ? itIds.length : 0;
+    
+    let inpNome = document.getElementById('conf_clienteNome');
+    let inpCPF = document.getElementById('conf_clienteCPF');
+    let inpQtd = document.getElementById('conf_qtdItens');
+    
+    if(inpNome) inpNome.value = nomeCliente || "";
+    if(inpCPF) inpCPF.value = cpfCliente || "";
+    if(inpQtd) inpQtd.value = qtdItens;
+ 
+    // =========================================================================
+    // 4. A MÁGICA DO KANBAN: Transforma a Conferência em Tela Cheia Absoluta
+    // =========================================================================
+    let moduloConf = document.getElementById('modulo_conferencia');
+    if (moduloConf) {
+        moduloConf.style.position = 'fixed';
+        moduloConf.style.top = '0';
+        moduloConf.style.left = '0';
+        moduloConf.style.width = '100vw';
+        moduloConf.style.height = '100vh';
+        moduloConf.style.zIndex = '999999';
+        moduloConf.style.backgroundColor = '#f4f5f7';
+        moduloConf.style.overflowY = 'auto';
+        moduloConf.style.display = 'block';
+    }
+    
+    // 5. Usa a memória: Abre direto na etapa correta
+    let etapaAlvo = (typeof dadosConf !== 'undefined' && dadosConf.etapaAtual) ? dadosConf.etapaAtual : 1;
+    if (etapaAlvo === 3 && typeof dadosConf !== 'undefined' && dadosConf.qtdParcelas > 0) {
+        if (typeof conf_mostrarEtapa === 'function') conf_mostrarEtapa(3);
+        if (typeof conf_gerarAbasParcelas === 'function') conf_gerarAbasParcelas();
+        if (typeof conf_abrirParcela === 'function') conf_abrirParcela(typeof conf_abaAtiva !== 'undefined' ? conf_abaAtiva : 0);
+    } else {
+        if (typeof conf_mostrarEtapa === 'function') conf_mostrarEtapa(etapaAlvo);
+    }
+ 
+    // 6. --- DESPERTADOR DAS PARCELAS ---
     setTimeout(() => {
         let inputQtdParcelas = document.getElementById('conf_qtdParcelas');
         if (inputQtdParcelas && inputQtdParcelas.value && parseInt(inputQtdParcelas.value) > 0) {
             
-            // 1. Força a criação das caixinhas dos meses se elas não existirem
             let container = document.getElementById("conf_mesesContainer");
             if (container && container.innerHTML.trim() === "") {
-                conf_gerarInputsMeses(inputQtdParcelas.value);
+                if (typeof conf_gerarInputsMeses === 'function') conf_gerarInputsMeses(inputQtdParcelas.value);
             }
             
-            // 2. Puxa a memória do sistema para preencher as datas (MM/AAAA)
             let idProp = document.getElementById('socio_prop_selecao')?.value || (typeof idPropostaAtiva !== 'undefined' ? idPropostaAtiva : "");
             let pCache = (idProp && typeof cachePropostasRegulamentares !== 'undefined') ? cachePropostasRegulamentares[idProp] : null;
             let dadosAtuais = typeof getDadosFormulario === 'function' ? getDadosFormulario() : (pCache ? pCache.valores : null);
             
-            // 3. Injeta os dados importados nas caixinhas
             if (dadosAtuais) {
                 for (let p = 0; p < parseInt(inputQtdParcelas.value); p++) {
                     let mesInput = document.getElementById(`conf_mes${p}`);
@@ -8481,16 +8894,19 @@ function gerarRelatorioCriticas() {
                 }
             }
         }
-    }, 400); // Aguarda a importação terminar de preencher a tela antes de agir
-
+    }, 400);
 }
-
-    function conf_fecharConferencia() {
-        document.getElementById('modulo_conferencia').style.display = 'none';
-        document.querySelector('body > .container').style.display = 'block';
-        window.scrollTo(0,0);
-        conf_atualizarS567V49(); // Atualiza o quadro 5 do projeto com os dados
+ 
+ 
+function conf_fecharConferencia() {
+    // Apenas puxa o "lençol" da conferência para esconder! Todo o fundo já estará intacto.
+    let moduloConf = document.getElementById('modulo_conferencia');
+    if (moduloConf) {
+        moduloConf.style.display = 'none';
     }
+    
+    if (typeof conf_atualizarS567V49 === 'function') conf_atualizarS567V49();
+}
 
     // --- LÓGICA DE TELAS (RESTAURADA DO SECUNDÁRIO) ---
 function conf_mostrarEtapa(etapa) {
@@ -9355,85 +9771,130 @@ function toggleImovelExtraInfo(id) {
 
     // --- BLOCOS SOCIOAMBIENTAIS ---
     function reconstruirBlocosSocio() {
-        let container = document.getElementById('container_socioambiental'); 
-        let dadosAtuais = getDadosFormulario(); 
+        let container = document.getElementById('container_socioambiental');
+        let dadosAtuais = typeof getDadosFormulario === 'function' ? getDadosFormulario() : {}; 
         container.innerHTML = "";
-        
-        if(imoveisIds.length === 0) { 
-            container.innerHTML = `<div style="color:var(--support-gray); font-style:italic;">Adicione imóveis na seção "Dados do(s) Imóvel(is)" para liberar os quadros socioambientais.</div>`; 
-            return; 
+
+        // =================================================================
+        // 🎯 MODO AVULSO: Injeta o cabeçalho "Analisando Proposta"
+        // =================================================================
+        let propSelect = document.getElementById('socio_prop_selecao');
+        if (typeof modoSocio !== 'undefined' && modoSocio === 'AVULSO' && propSelect) {
+            let tipo = document.getElementById('av_socio_tipo')?.value || "PROPOSTA AVULSA";
+            let valor = document.getElementById('av_socio_valor')?.value || "0,00";
+            propSelect.innerHTML = `<option value="AVULSO">${tipo.toUpperCase()} - R$ ${valor}</option>`;
         }
 
-        // =========================================================================
-        // REGRA 9: FILTRAGEM INTELIGENTE BLINDADA CONTRA ATRASOS DO DOM (VIA CACHE)
-        // =========================================================================
-        let idPropostaSocio = document.getElementById('socio_prop_selecao')?.value || (typeof idPropostaAtiva !== 'undefined' ? idPropostaAtiva : "");
-        let tipoDaPropostaAnalisada = "";
-
-        // 1. Tenta puxar o Tipo DIRETO do Cache (Instantâneo)
-        if (idPropostaSocio && typeof cachePropostasRegulamentares !== 'undefined' && cachePropostasRegulamentares[idPropostaSocio]) {
-            tipoDaPropostaAnalisada = cachePropostasRegulamentares[idPropostaSocio].valores['proj_tipo'] || "";
-        }
-        // 2. Se não achar no cache (proposta recém criada, sem salvar), puxa da tela
-        if (!tipoDaPropostaAnalisada) {
-            tipoDaPropostaAnalisada = document.getElementById('proj_tipo')?.value || "";
-        }
-
-        tipoDaPropostaAnalisada = tipoDaPropostaAnalisada.toUpperCase().trim();
-        let isGarantiaPura = (tipoDaPropostaAnalisada === 'LCGH' || tipoDaPropostaAnalisada === 'LCGA');
-        let imoveisFiltrados = [];
-
-        if (isGarantiaPura) {
-            // LCGH/LCGA: Puxa SÓ os imóveis marcados em "Garantias da Proposta"
-            
-            // Tenta puxar da tela primeiro
-            let garScreenIds = [];
-            let linhasGarantia = typeof garantiasRowsIds !== 'undefined' ? garantiasRowsIds : (typeof projGarantiasIds !== 'undefined' ? projGarantiasIds : []);
-            linhasGarantia.forEach(rowId => {
-                let imoSelect = document.getElementById(`prop_g_imovel_${rowId}`) || document.getElementById(`prop_garantia_imovel_${rowId}`) || document.getElementById(`proj_garantia_imovel_${rowId}`);
-                if (imoSelect && imoSelect.value) garScreenIds.push(imoSelect.value);
-            });
-
-            // Se a tela não atualizou ainda, puxa do Cache
-            if (garScreenIds.length === 0 && idPropostaSocio && typeof cachePropostasRegulamentares !== 'undefined' && cachePropostasRegulamentares[idPropostaSocio]) {
-                let pCache = cachePropostasRegulamentares[idPropostaSocio];
-                for (let key in pCache.valores) {
-                    if (key.includes('garantia_imovel') && pCache.valores[key]) {
-                        garScreenIds.push(pCache.valores[key]);
-                    }
-                }
+        // Se for o Módulo Automático e não houver imóveis inseridos lá no quadro 2, para tudo.
+        if(typeof modoSocio === 'undefined' || modoSocio !== 'AVULSO') {
+            if(typeof imoveisIds !== 'undefined' && imoveisIds.length === 0) { 
+                container.innerHTML = `<div style="color:var(--support-gray); font-style:italic;">Adicione imóveis na seção "Dados do(s) Imóvel(is)" para liberar os quadros socioambientais.</div>`; 
+                return; 
             }
-            imoveisFiltrados = garScreenIds;
+        }
 
-        } else if (tipoDaPropostaAnalisada === 'INVESTIMENTO' || tipoDaPropostaAnalisada === 'CUSTEIO') {
-            // Investimento/Custeio: Puxa SÓ os imóveis Beneficiados
-            if (typeof imoveisBeneficiadosIds !== 'undefined' && imoveisBeneficiadosIds.length > 0) {
-                imoveisFiltrados = [...imoveisBeneficiadosIds];
-            } else if (idPropostaSocio && typeof cachePropostasRegulamentares !== 'undefined' && cachePropostasRegulamentares[idPropostaSocio]) {
-                let cacheBens = cachePropostasRegulamentares[idPropostaSocio].imoveisBeneficiadosIds || [];
-                imoveisFiltrados = [...cacheBens];
+        // =========================================================================
+        // REGRA 9: FILTRAGEM INTELIGENTE E DEFINIÇÃO DE CONTEXTO (AUTO vs AVULSO)
+        // =========================================================================
+        let tipoDaPropostaAnalisada = "";
+        let imoveisFiltrados = [];
+        let isGarantiaPura = false;
+
+        if (typeof modoSocio !== 'undefined' && modoSocio === 'AVULSO') {
+            // LÓGICA DO MODO MANUAL/AVULSO
+            imoveisFiltrados = [...avulsoSocioImoveisIds];
+            tipoDaPropostaAnalisada = document.getElementById('av_socio_tipo')?.value.toUpperCase().trim() || "";
+            isGarantiaPura = (tipoDaPropostaAnalisada === 'LCGH' || tipoDaPropostaAnalisada === 'LCGA');
+            
+            if(imoveisFiltrados.length === 0) { 
+                container.innerHTML = `<div style="color:var(--support-gray); font-style:italic;">Adicione imóveis na aba "Preencher Análise Avulsa" para liberar os quadros socioambientais.</div>`;
+                return; 
             }
         } else {
-            // Se nenhuma estiver selecionada, carrega todos
-            imoveisFiltrados = [...imoveisIds];
+            // LÓGICA DO MODO AUTOMÁTICO (SUA REGRA ORIGINAL INTACTA)
+            let idPropostaSocio = document.getElementById('socio_prop_selecao')?.value || (typeof idPropostaAtiva !== 'undefined' ? idPropostaAtiva : "");
+            
+            // 1. Tenta puxar o Tipo DIRETO do Cache (Instantâneo)
+            if (idPropostaSocio && typeof cachePropostasRegulamentares !== 'undefined' && cachePropostasRegulamentares[idPropostaSocio]) {
+                tipoDaPropostaAnalisada = cachePropostasRegulamentares[idPropostaSocio].valores['proj_tipo'] || "";
+            }
+            // 2. Se não achar no cache (proposta recém criada, sem salvar), puxa da tela
+            if (!tipoDaPropostaAnalisada) {
+                tipoDaPropostaAnalisada = document.getElementById('proj_tipo')?.value || "";
+            }
+
+            tipoDaPropostaAnalisada = tipoDaPropostaAnalisada.toUpperCase().trim();
+            isGarantiaPura = (tipoDaPropostaAnalisada === 'LCGH' || tipoDaPropostaAnalisada === 'LCGA');
+
+            if (isGarantiaPura) {
+                // LCGH/LCGA: Puxa SÓ os imóveis marcados em "Garantias da Proposta"
+                let garScreenIds = [];
+                let linhasGarantia = typeof garantiasRowsIds !== 'undefined' ? garantiasRowsIds : (typeof projGarantiasIds !== 'undefined' ? projGarantiasIds : []);
+                linhasGarantia.forEach(rowId => {
+                    let imoSelect = document.getElementById(`prop_g_imovel_${rowId}`) || document.getElementById(`prop_garantia_imovel_${rowId}`) || document.getElementById(`proj_garantia_imovel_${rowId}`);
+                    if (imoSelect && imoSelect.value) garScreenIds.push(imoSelect.value);
+                });
+                // Se a tela não atualizou ainda, puxa do Cache
+                if (garScreenIds.length === 0 && idPropostaSocio && typeof cachePropostasRegulamentares !== 'undefined' && cachePropostasRegulamentares[idPropostaSocio]) {
+                    let pCache = cachePropostasRegulamentares[idPropostaSocio];
+                    for (let key in pCache.valores) {
+                        if (key.includes('garantia_imovel') && pCache.valores[key]) {
+                            garScreenIds.push(pCache.valores[key]);
+                        }
+                    }
+                }
+                imoveisFiltrados = garScreenIds;
+            } else if (tipoDaPropostaAnalisada === 'INVESTIMENTO' || tipoDaPropostaAnalisada === 'CUSTEIO') {
+                // Investimento/Custeio: Puxa SÓ os imóveis Beneficiados
+                if (typeof imoveisBeneficiadosIds !== 'undefined' && imoveisBeneficiadosIds.length > 0) {
+                    imoveisFiltrados = [...imoveisBeneficiadosIds];
+                } else if (idPropostaSocio && typeof cachePropostasRegulamentares !== 'undefined' && cachePropostasRegulamentares[idPropostaSocio]) {
+                    let cacheBens = cachePropostasRegulamentares[idPropostaSocio].imoveisBeneficiadosIds || [];
+                    imoveisFiltrados = [...cacheBens];
+                }
+            } else {
+                // Se nenhuma estiver selecionada, carrega todos
+                imoveisFiltrados = typeof imoveisIds !== 'undefined' ? [...imoveisIds] : [];
+            }
         }
 
-        imoveisFiltrados = [...new Set(imoveisFiltrados)]; // Remove duplicatas
+        imoveisFiltrados = [...new Set(imoveisFiltrados)];
+        // Remove duplicatas
 
         // Aviso visual caso a proposta não tenha imóveis
         if (imoveisFiltrados.length === 0 && tipoDaPropostaAnalisada !== "") {
-            container.innerHTML = `<div style="color:var(--accent-color); font-weight:bold; padding: 15px; border: 1px dashed var(--accent-color); border-radius: 5px; background: #fff8f8;">⚠️ Atenção: Nenhum imóvel foi vinculado a esta proposta.<br><span style="font-size: 12px; font-weight: normal;">Vincule os imóveis na guia de Beneficiados (Invest/Cust) ou Garantias (LCG) lá no quadro principal.</span></div>`; 
+            container.innerHTML = `<div style="color:var(--accent-color); font-weight:bold; padding: 15px; border: 1px dashed var(--accent-color); border-radius: 5px; background: #fff8f8;">⚠️ Atenção: Nenhum imóvel foi vinculado a esta proposta.<br><span style="font-size: 12px; font-weight: normal;">Vincule os imóveis na guia de Beneficiados (Invest/Cust) ou Garantias (LCG) lá no quadro principal.</span></div>`;
             return;
         }
 
         // Loop de Renderização APENAS para os imóveis corretos
         imoveisFiltrados.forEach(id => {
-            let nome = document.getElementById(`imo_nome_${id}`)?.value || "Imóvel Sem Nome"; 
-            let mat = document.getElementById(`imo_mat_${id}`)?.value || "S/N"; 
-            let cid = document.getElementById(`imo_cidade_${id}`)?.value || "S/N"; 
-            let car = document.getElementById(`imo_car_${id}`)?.value || "S/N"; 
-            let areaTotal = document.getElementById(`imo_area_${id}`)?.value || "0";
-            if(!glebasIds[id]) glebasIds[id] = [];
+
+            // 🎯 MÁGICA DE LEITURA (Puxa os dados do Avulso ou do Automático)
+            let nome, mat, cid, car, areaTotal;
+
+            if (typeof modoSocio !== 'undefined' && modoSocio === 'AVULSO') {
+                nome = document.getElementById(`av_socio_imo_nome_${id}`)?.value;
+                mat = document.getElementById(`av_socio_imo_mat_${id}`)?.value;
+                cid = document.getElementById(`av_socio_imo_cid_${id}`)?.value;
+                car = document.getElementById(`av_socio_imo_car_${id}`)?.value;
+                areaTotal = document.getElementById(`av_socio_imo_area_${id}`)?.value;
+            } else {
+                nome = document.getElementById(`imo_nome_${id}`)?.value;
+                mat = document.getElementById(`imo_mat_${id}`)?.value || document.getElementById(`imo_matricula_${id}`)?.value;
+                cid = document.getElementById(`imo_cidade_${id}`)?.value;
+                car = document.getElementById(`imo_car_${id}`)?.value;
+                areaTotal = document.getElementById(`imo_area_${id}`)?.value;
+            }
+
+            // Tratamento contra vazios para não quebrar a estética do quadro
+            nome = nome || "Imóvel Sem Nome";
+            mat = mat || "S/N";
+            cid = cid || "S/N";
+            car = car || "S/N";
+            areaTotal = areaTotal || "0";
+
+            if(typeof glebasIds !== 'undefined' && !glebasIds[id]) glebasIds[id] = [];
 
             // REGRA 9.1: Esconder "Análise das Glebas" para LCGH/LCGA
             let blocoGlebasHTML = isGarantiaPura ? "" : `
@@ -9447,9 +9908,10 @@ function toggleImovelExtraInfo(id) {
                 </div>
             `;
 
+            // SEU HTML ORIGINAL INTACTO ABAIXO
             let html = `
             <div class="person-card" style="border-left-color: var(--support-purple);">
-                <span class="dynamic-subtitle" id="lbl_socio_${id}">IMÓVEL: ${nome} | MAT: ${mat} | CIDADE: ${cid} | CAR: ${car} | ÁREA CADASTRADA (S400): ${areaTotal} ha</span>
+                <span class="dynamic-subtitle" id="lbl_socio_${id}">IMÓVEL: ${nome.toUpperCase()} | MAT: ${mat} | CIDADE: ${cid.toUpperCase()} | CAR: ${car.toUpperCase()} | ÁREA CADASTRADA (S400): ${areaTotal} ha</span>
                 <input type="hidden" id="socio_ref_area_${id}" value="${areaTotal}">
                 
                 <div style="display: flex; gap: 20px; align-items: flex-end; margin: 15px 0; background: #fdfdfd; padding: 15px; border: 1px dashed var(--accent-color); border-radius: 5px;">
@@ -9520,12 +9982,12 @@ function toggleImovelExtraInfo(id) {
             
             container.insertAdjacentHTML('beforeend', html);
             
-            if (!isGarantiaPura) {
+            if (!isGarantiaPura && typeof glebasIds !== 'undefined' && glebasIds[id]) {
                 glebasIds[id].forEach(gl_id => renderGlebaHTML(id, gl_id));
             }
         });
 
-        // Restaura dados e dispara gatilhos
+        // Restaura dados e dispara gatilhos (INTACTO)
         for (const key in dadosAtuais) {
             let el = document.getElementById(key);
             if(el && (key.startsWith('socio_') || key.startsWith('gl_') || key.startsWith('sob_') || key === 'data_analise_socio')) {
@@ -9534,19 +9996,58 @@ function toggleImovelExtraInfo(id) {
         }
         
         imoveisFiltrados.forEach(id => {
-            calcSocio(id); toggleSocioFields(id); 
-            if (!isGarantiaPura) {
+            calcSocio(id); 
+            toggleSocioFields(id); 
+            if (!isGarantiaPura && typeof glebasIds !== 'undefined' && glebasIds[id]) {
                 glebasIds[id].forEach(gl_id => toggleGlebaSobre(gl_id));
             }
-            setTimeout(() => verificarConformidadeSocioambiental(id), 200);
+            setTimeout(() => {
+                if (typeof verificarConformidadeSocioambiental === 'function') verificarConformidadeSocioambiental(id);
+            }, 200);
         });
 
-        setTimeout(() => document.querySelectorAll('.auto-expand').forEach(ta => autoResize(ta)), 100);
+        setTimeout(() => document.querySelectorAll('.auto-expand').forEach(ta => {
+            if(typeof autoResize === 'function') autoResize(ta);
+        }), 100);
     }
 
     function updateSocioSpan(id) {
-        let nome = document.getElementById(`imo_nome_${id}`)?.value || "Imóvel Sem Nome"; let mat = document.getElementById(`imo_mat_${id}`)?.value || "S/N"; let cid = document.getElementById(`imo_cidade_${id}`)?.value || "S/N"; let car = document.getElementById(`imo_car_${id}`)?.value || "S/N"; let areaTotal = document.getElementById(`imo_area_${id}`)?.value || "0"; let span = document.getElementById(`lbl_socio_${id}`); if(span) span.innerText = `IMÓVEL: ${nome} | MAT: ${mat} | CIDADE: ${cid} | CAR: ${car} | ÁREA CADASTRADA (S400): ${areaTotal} ha`; let ref = document.getElementById(`socio_ref_area_${id}`); if(ref) ref.value = areaTotal; calcSocio(id);
-        if (document.getElementById('kml_verifier_container').style.display === 'block') reconstruirBlocosKMLVerifier();
+        
+        // 🎯 MÁGICA DE LEITURA (Puxa do Avulso ou do Automático)
+        let nome, mat, cid, car, areaTotal;
+
+        if (typeof modoSocio !== 'undefined' && modoSocio === 'AVULSO') {
+            nome = document.getElementById(`av_socio_imo_nome_${id}`)?.value;
+            mat = document.getElementById(`av_socio_imo_mat_${id}`)?.value;
+            cid = document.getElementById(`av_socio_imo_cid_${id}`)?.value;
+            car = document.getElementById(`av_socio_imo_car_${id}`)?.value;
+            areaTotal = document.getElementById(`av_socio_imo_area_${id}`)?.value;
+        } else {
+            nome = document.getElementById(`imo_nome_${id}`)?.value;
+            mat = document.getElementById(`imo_mat_${id}`)?.value || document.getElementById(`imo_matricula_${id}`)?.value;
+            cid = document.getElementById(`imo_cidade_${id}`)?.value;
+            car = document.getElementById(`imo_car_${id}`)?.value;
+            areaTotal = document.getElementById(`imo_area_${id}`)?.value;
+        }
+
+        // Tratamento contra vazios para manter a formatação do cabeçalho
+        nome = nome || "Imóvel Sem Nome"; 
+        mat = mat || "S/N"; 
+        cid = cid || "S/N"; 
+        car = car || "S/N"; 
+        areaTotal = areaTotal || "0"; 
+        
+        let span = document.getElementById(`lbl_socio_${id}`); 
+        if(span) span.innerText = `IMÓVEL: ${nome.toUpperCase()} | MAT: ${mat} | CIDADE: ${cid.toUpperCase()} | CAR: ${car.toUpperCase()} | ÁREA CADASTRADA (S400): ${areaTotal} ha`; 
+        
+        let ref = document.getElementById(`socio_ref_area_${id}`); 
+        if(ref) ref.value = areaTotal; 
+        
+        calcSocio(id);
+        
+        if (document.getElementById('kml_verifier_container') && document.getElementById('kml_verifier_container').style.display === 'block') {
+            if(typeof reconstruirBlocosKMLVerifier === 'function') reconstruirBlocosKMLVerifier();
+        }
         if (typeof renderizarDistribuicaoItens === "function") renderizarDistribuicaoItens();
     }
 
@@ -12923,12 +13424,21 @@ function criarMenuLateralAbas() {
                 });
 
                 // 2. Comportamento específico: Desembolso
-                // AQUI ESTÁ O SEGREDO: Só abre o modal se o clique for no botão de desembolso
                 if (sec.id === 'sec_desembolso') {
-                    // Espera um milissegundo para garantir que a transição de abas não interfira
-                    setTimeout(() => {
-                        document.getElementById('modal_escolha_desembolso').style.display = 'flex';
-                    }, 100);
+                    // 💡 TRAVA: Só abre o modal se a memória estiver vazia
+                    if (typeof modoDesembolso === 'undefined' || modoDesembolso === "") {
+                        setTimeout(() => {
+                            document.getElementById('modal_escolha_desembolso').style.display = 'flex';
+                        }, 100);
+                    }
+                }
+
+                // 3. Comportamento específico: Socioambiental
+                if (sec.id === 'sec_socio') {
+                    // 💡 TRAVA: Só abre o modal se a memória estiver vazia
+                    if (typeof modoSocio === 'undefined' || modoSocio === "") {
+                        setTimeout(() => { document.getElementById('modal_escolha_socio').style.display = 'flex'; }, 100);
+                    }
                 }
 
                 // 3. Mostra a seção clicada
@@ -13989,12 +14499,57 @@ function adicionarItemAvulsoDesemb() {
     avulsoItemCont++;
     let id = avulsoItemCont;
     let html = `<div class="row-av-item" data-id="${id}" style="display:flex; gap:10px; margin-bottom:10px; align-items:center;">
-        <input type="text" id="av_desemb_item_desc_${id}" placeholder="Descrição do Item" style="flex:2;">
-        <input type="number" step="any" id="av_desemb_item_qtd_${id}" placeholder="Qtd" style="flex:1;">
-        <input type="text" id="av_desemb_item_vt_${id}" placeholder="Total Orçado (R$)" oninput="mascaraMoeda(this)" style="flex:1.5;">
-        <button class="btn-clear" style="color:red; border:none; padding:5px;" onclick="this.parentElement.remove()">X</button>
+        <div style="flex:2;"><input type="text" id="av_desemb_item_desc_${id}" placeholder="Descrição"></div>
+        <div style="flex:1;"><input type="text" id="av_desemb_item_qtd_${id}" oninput="calcAvulsoItem('${id}')" placeholder="Qtdd"></div>
+        <div style="flex:1;"><input type="text" id="av_desemb_item_vu_${id}" oninput="mascaraMoeda(this); calcAvulsoItem('${id}')" placeholder="V. Unitário"></div>
+        <div style="flex:1;"><input type="text" id="av_desemb_item_vt_${id}" oninput="mascaraMoeda(this); calcAvulsoItemReverse('${id}')" placeholder="Total" style="font-weight:bold;"></div>
+        <div style="flex:none; width:30px;"><button class="btn-clear" style="padding:6px; width:100%; color:red;" onclick="this.parentElement.parentElement.remove(); atualizarTotalAvulso();">X</button></div>
     </div>`;
     document.getElementById('av_desemb_container_itens').insertAdjacentHTML('beforeend', html);
+}
+ 
+// Utilitário local para converter moeda em float
+function parseMoedaAvulso(val) {
+    if (!val) return 0;
+    return parseFloat(val.toString().replace(/[^\d,]/g, '').replace(',', '.')) || 0;
+}
+ 
+// Matemática 1: Qtd x Valor Unitário
+function calcAvulsoItem(id) {
+    let qtdStr = document.getElementById(`av_desemb_item_qtd_${id}`).value.replace(',', '.');
+    let qtd = parseFloat(qtdStr) || 0;
+    let vu = parseMoedaAvulso(document.getElementById(`av_desemb_item_vu_${id}`).value);
+    let vt = document.getElementById(`av_desemb_item_vt_${id}`);
+    
+    let total = qtd * vu;
+    if(total > 0) vt.value = total.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    else vt.value = "";
+    atualizarTotalAvulso();
+}
+ 
+// Matemática 2: Engenharia Reversa (Total / Qtd)
+function calcAvulsoItemReverse(id) {
+    let qtdStr = document.getElementById(`av_desemb_item_qtd_${id}`).value.replace(',', '.');
+    let qtd = parseFloat(qtdStr) || 0;
+    let vt = parseMoedaAvulso(document.getElementById(`av_desemb_item_vt_${id}`).value);
+    let vu = document.getElementById(`av_desemb_item_vu_${id}`);
+    
+    if (qtd > 0 && vt > 0) {
+        let unitario = vt / qtd;
+        vu.value = unitario.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    } else {
+        vu.value = "";
+    }
+    atualizarTotalAvulso();
+}
+ 
+// Atualiza o rodapé do modal
+function atualizarTotalAvulso() {
+    let total = 0;
+    document.querySelectorAll('[id^="av_desemb_item_vt_"]').forEach(inp => {
+        total += parseMoedaAvulso(inp.value);
+    });
+    document.getElementById('av_desemb_total_orcamento').innerText = total.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 }
 
 function confirmarDesembolsoAvulso() {
@@ -14002,21 +14557,17 @@ function confirmarDesembolsoAvulso() {
     avulsoImoveisIds = [];
     avulsoItensIds = [];
     
+    // Salva os IDs apenas das linhas que existirem na tela, mesmo que estejam em branco
     document.querySelectorAll('.row-av-imo').forEach(row => {
-        let id = row.dataset.id;
-        if(document.getElementById(`av_desemb_imo_nome_${id}`).value.trim() !== '') avulsoImoveisIds.push(id);
+        avulsoImoveisIds.push(row.dataset.id);
     });
     
     document.querySelectorAll('.row-av-item').forEach(row => {
-        let id = row.dataset.id;
-        if(document.getElementById(`av_desemb_item_desc_${id}`).value.trim() !== '') avulsoItensIds.push(id);
+        avulsoItensIds.push(row.dataset.id);
     });
-
-    if(avulsoImoveisIds.length === 0 || avulsoItensIds.length === 0) {
-        alert("Preencha pelo menos um Imóvel e um Item para prosseguir!");
-        return;
-    }
-
+ 
+    // 🛠️ Trava de obrigatoriedade removida! O usuário agora é livre.
+ 
     document.getElementById('modal_avulso_desembolso').style.display = 'none';
     document.getElementById('desemb_bloqueio').style.display = 'none';
     document.getElementById('desemb_conteudo').style.display = 'block';
@@ -16917,6 +17468,59 @@ function verificarEstadoDesembolso() {
     }
 }
 
+// =========================================================================
+// CONTROLE DE MODO SOCIOAMBIENTAL (AUTO VS AVULSO)
+// =========================================================================
+let modoSocio = "";
+let avulsoSocioImoveisIds = [];
+let avulsoSocioCont = 0;
+ 
+function acionarSocioAuto() {
+    modoSocio = 'AUTO';
+    document.getElementById('modal_escolha_socio').style.display = 'none';
+    
+    // Restaura o select original caso o avulso tenha sobrescrito
+    let propSelect = document.getElementById('socio_prop_selecao');
+    if (propSelect && typeof carregarPropostasNoDropdownSocio === 'function') carregarPropostasNoDropdownSocio();
+    
+    reconstruirBlocosSocio();
+}
+ 
+function abrirModalAvulsoSocio() {
+    document.getElementById('modal_escolha_socio').style.display = 'none';
+    document.getElementById('modal_avulso_socio').style.display = 'flex';
+    if (avulsoSocioCont === 0) adicionarImovelAvulsoSocio();
+}
+ 
+function adicionarImovelAvulsoSocio() {
+    avulsoSocioCont++;
+    let id = avulsoSocioCont;
+    let html = `
+    <div class="row-av-socio-imo" data-id="${id}" style="border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; border-radius: 4px; position: relative; background: #fafafa;">
+        <button class="btn-clear" style="position: absolute; right: 5px; top: 5px; color: red; padding: 5px; background: transparent; border: none; font-weight: bold; cursor: pointer;" onclick="this.parentElement.remove()">X</button>
+        <div class="grid" style="grid-template-columns: 2fr 1fr; gap: 10px; margin-bottom: 10px;">
+            <div><label style="font-size:11px;">Nome do Imóvel</label><input type="text" id="av_socio_imo_nome_${id}" placeholder="Ex: Fazenda Pingo de Ouro"></div>
+            <div><label style="font-size:11px;">Matrícula</label><input type="text" id="av_socio_imo_mat_${id}" placeholder="Ex: 6660"></div>
+        </div>
+        <div class="grid" style="grid-template-columns: 1fr 2fr 1fr; gap: 10px;">
+            <div><label style="font-size:11px;">Cidade/UF</label><input type="text" id="av_socio_imo_cid_${id}" placeholder="Ex: ZE DOCA - MA"></div>
+            <div><label style="font-size:11px;">Nº CAR</label><input type="text" id="av_socio_imo_car_${id}" placeholder="Ex: MA-2114007-..."></div>
+            <div><label style="font-size:11px;">Área (ha)</label><input type="text" id="av_socio_imo_area_${id}" placeholder="Ex: 109,45"></div>
+        </div>
+    </div>`;
+    document.getElementById('av_socio_container_imoveis').insertAdjacentHTML('beforeend', html);
+}
+ 
+function confirmarSocioAvulso() {
+    modoSocio = 'AVULSO';
+    avulsoSocioImoveisIds = [];
+    document.querySelectorAll('.row-av-socio-imo').forEach(row => {
+        avulsoSocioImoveisIds.push(row.dataset.id);
+    });
+    document.getElementById('modal_avulso_socio').style.display = 'none';
+    reconstruirBlocosSocio();
+}
+
 </script>
 
 <div id="modal_parecer_gerencial" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 10000; justify-content: center; align-items: center; backdrop-filter: blur(3px);">
@@ -17172,160 +17776,758 @@ function alternarBlocoNotas(mostrar) {
 }
 
 // =========================================================================
-// LÓGICA DO KANBAN (DRAG & DROP E EDIÇÃO RICA)
+// NOVO // =========================================================================
+// MOTOR DO WORKFLOW OPERACIONAL KANBAN COM CRONOGRAMA DE EXPURGO
 // =========================================================================
 
-// Cria um novo Card
-// Adicione o parâmetro 'podeSalvar = true' aqui
-function adicionarCardKanban(colunaId, textoHtml = "", podeSalvar = true) {
-    let container = document.querySelector(`#${colunaId} .kanban-cards-container`);
-    let cardId = 'card_' + Date.now();
+// Incluído 'NOTAS' na matriz de rastreabilidade
+const ordemEtapasWorkflow = ['NOTAS', 'CADASTROS', 'PCE', 'S522', 'CONTRATOS', 'DESEMBOLSOS', 'ACOMPANHAMENTO'];
+const nomesAmigaveisEtapas = {
+    'NOTAS': '📌 Lembretes', 'CADASTROS': 'Cadastros', 'PCE': 'PCE Crédito', 
+    'S522': 'S522 Central', 'CONTRATOS': 'Contratos', 'DESEMBOLSOS': 'Desembolsos', 'ACOMPANHAMENTO': 'Acompanham.'
+};
 
-    let card = document.createElement('div');
-    card.className = 'kanban-card';
-    card.id = cardId;
-    card.setAttribute('draggable', 'true');
-    
-    // Inicia o arrasto (Drag)
-    card.addEventListener('dragstart', function(e) {
-        e.dataTransfer.setData('text/plain', cardId);
-        setTimeout(() => card.classList.add('is-dragging'), 0);
+function renderizarWorkflowKanban() {
+    // Executa a limpeza preventiva de expurgo de 30 dias nas Notas antes de desenhar na tela
+    verificarExpurgoNotasTrintaDias();
+
+    ordemEtapasWorkflow.forEach(etapa => {
+        let el = document.getElementById(`list_${etapa.toLowerCase()}`);
+        if (el) el.innerHTML = "";
+    });
+
+    // REORDENAÇÃO INTELIGENTE (Cruza as regras do ciclo com as regras do Bloco de Notas)
+    // 2. REORDENAÇÃO INTELIGENTE E AUTOMÁTICA
+    // =========================================================================
+    // REORDENAÇÃO INTELIGENTE (Hierarquia de Cores + Respeito ao Arrastar/Soltar)
+    // =========================================================================
+    // 2. REORDENAÇÃO INTELIGENTE E AUTOMÁTICA
+    // 2. REORDENAÇÃO INTELIGENTE (Hierarquia de Cores + Respeito ao Arrastar/Soltar)
+    dadosWorkflowKanban.sort((a, b) => {
+        const pesoCor = { 
+            'azul': 4,    // Em Análise
+            'vermelho': 3, // Prioritário
+            'amarelo': 2,  // Pendente Geral
+            'verde': 1     // Concluído
+        };
+
+        // MÁGICA: Se tem a etiqueta "isNovo", o peso vira 5 (vai pro topo absoluto)
+        let pesoA = a.isNovo ? 5 : (pesoCor[a.statusCor] || 0);
+        let pesoB = b.isNovo ? 5 : (pesoCor[b.statusCor] || 0);
+
+        // 1ª Regra: Ordena rigorosamente pelos pesos
+        if (pesoA !== pesoB) {
+            return pesoB - pesoA; 
+        }
+
+        // 2ª Regra: Se os pesos são iguais, mantém onde você arrastou (return 0)
+        return 0; 
+    });
+
+    dadosWorkflowKanban.forEach(card => {
+        let container = document.getElementById(`list_${card.etapa.toLowerCase()}`);
+        if (!container) return;
+
+        let corClasse = card.statusCor ? `status-${card.statusCor}` : 'status-amarelo';
+        
+        // Estilização condicional se for uma Nota Concluída (Verde): Aplica o text-decoration line-through (Taxado)
+        let estiloEditorRico = "";
+        if (card.etapa === 'NOTAS' && card.statusCor === 'verde') {
+            estiloEditorRico = "text-decoration: line-through; opacity: 0.6; font-style: italic;";
+        }
+
+        // ... (resto da função renderizarWorkflowKanban continua igual acima disso) ...
+        
+        let optionsRoteamento = `<option value="" disabled selected>↪</option>`;
+        ordemEtapasWorkflow.forEach(et => { optionsRoteamento += `<option value="${et}">${nomesAmigaveisEtapas[et]}</option>`; });
+
+        // Fallback de segurança: Se o card é antigo e não tem data, ganha a data de hoje.
+        if (!card.dataModificacao) card.dataModificacao = getHojeStr();
+
+        let cardHTML = `
+        <div class="kanban-card ${corClasse}" id="${card.id}" style="position: relative;" draggable="false" ondragstart="dragCardWorkflow(event, '${card.id}')" ondragend="dragEndWorkflow(event, '${card.id}')">
+            
+            <div class="trigger-borda-cor" title="Alterar Situação" onclick="toggleMenuCorCard(event, '${card.id}')" style="position: absolute; left: -5px; top: 0; bottom: 0; width: 12px; cursor: pointer; z-index: 5;"></div>
+
+            <div id="menu_cor_${card.id}" class="kanban-menu-cores" style="display: none; position: absolute; left: 10px; top: 25px; background: white; border: 1px solid #e0e0e0; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-radius: 6px; padding: 6px; z-index: 100; flex-direction: column; gap: 2px; width: 140px;">
+                <div onclick="mudarCorStatusCard('${card.id}', 'azul'); toggleMenuCorCard(event, '${card.id}')" style="display: flex; align-items: center; gap: 8px; padding: 6px; cursor: pointer; font-size: 11px; font-weight: bold; color: #333; border-radius: 4px; transition: 0.2s;" onmouseover="this.style.background='#f4f5f7'" onmouseout="this.style.background='transparent'">
+                    <div style="width: 12px; height: 12px; border-radius: 50%; background: #1a73e8;"></div> Em Análise
+                </div>
+                <div onclick="mudarCorStatusCard('${card.id}', 'vermelho'); toggleMenuCorCard(event, '${card.id}')" style="display: flex; align-items: center; gap: 8px; padding: 6px; cursor: pointer; font-size: 11px; font-weight: bold; color: #333; border-radius: 4px; transition: 0.2s;" onmouseover="this.style.background='#f4f5f7'" onmouseout="this.style.background='transparent'">
+                    <div style="width: 12px; height: 12px; border-radius: 50%; background: #d93025;"></div> Prioritário
+                </div>
+                <div onclick="mudarCorStatusCard('${card.id}', 'amarelo'); toggleMenuCorCard(event, '${card.id}')" style="display: flex; align-items: center; gap: 8px; padding: 6px; cursor: pointer; font-size: 11px; font-weight: bold; color: #333; border-radius: 4px; transition: 0.2s;" onmouseover="this.style.background='#f4f5f7'" onmouseout="this.style.background='transparent'">
+                    <div style="width: 12px; height: 12px; border-radius: 50%; background: #f29900;"></div> Pendente Geral
+                </div>
+                <div onclick="mudarCorStatusCard('${card.id}', 'verde'); toggleMenuCorCard(event, '${card.id}')" style="display: flex; align-items: center; gap: 8px; padding: 6px; cursor: pointer; font-size: 11px; font-weight: bold; color: #333; border-radius: 4px; transition: 0.2s;" onmouseover="this.style.background='#f4f5f7'" onmouseout="this.style.background='transparent'">
+                    <div style="width: 12px; height: 12px; border-radius: 50%; background: #137333;"></div> Concluído
+                </div>
+            </div>
+
+            <div class="card-drag-handle" onmousedown="ativarDragCard('${card.id}')" onmouseup="desativarDragCard('${card.id}')" onmouseleave="desativarDragCard('${card.id}')">
+                
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <select class="select-route-fast" onmousedown="event.stopPropagation()" onchange="rotearCardViaMenu('${card.id}', this.value)">${optionsRoteamento}</select>
+                </div>
+                
+                <div style="display:flex; gap:2px; align-items:center;">
+                    <button class="btn-lembrete-icon" onmousedown="event.stopPropagation()" onclick="abrirModalLembrete('${card.id}')" title="Agendar Lembrete">⏰</button>
+                    <input type="date" class="card-date-input" value="${card.dataModificacao}" onmousedown="event.stopPropagation()" onchange="atualizarDataManual('${card.id}', this.value)" title="Data da Última Modificação">
+                    <button class="card-delete-btn" onmousedown="event.stopPropagation()" onclick="excluirCardWorkflow('${card.id}')" title="Excluir Card">X</button>
+                </div>
+            </div>
+            
+            <div class="card-editor" contenteditable="true" style="${estiloEditorRico}" oninput="atualizarTextoLocal('${card.id}', this.innerHTML, this.innerText)" onblur="salvarTextoFirebase('${card.id}', this.innerHTML, this.innerText)">${card.texto}</div>
+            
+        </div>`;
+        
+        container.insertAdjacentHTML('beforeend', cardHTML);
     });
     
-    // Finaliza o arrasto
-    card.addEventListener('dragend', function() {
-        card.classList.remove('is-dragging');
-        atualizarContadoresKanban();
-        salvarKanbanNoFirebase(); // Gatilho de Salvamento
-    });
-
-    card.innerHTML = `
-        <div class="card-drag-handle">
-            <span>⠿</span>
-            <button class="card-delete-btn" onclick="deletarCardKanban('${cardId}')" title="Excluir Card">X</button>
-        </div>
-        <div class="card-editor" contenteditable="true" oninput="salvarKanbanNoFirebase()">${textoHtml}</div>
-    `;
-
-    // Garante que só o "Puxador" inicie o arrasto (protege a área de edição de texto)
-    card.querySelector('.card-editor').addEventListener('mousedown', (e) => {
-        card.setAttribute('draggable', 'false');
-    });
-    card.querySelector('.card-editor').addEventListener('mouseup', (e) => {
-        card.setAttribute('draggable', 'true');
-    });
-    card.querySelector('.card-editor').addEventListener('mouseleave', (e) => {
-        card.setAttribute('draggable', 'true');
-    });
-
-    // Insere o card sempre no topo da lista
-    container.insertBefore(card, container.firstChild);
-    atualizarContadoresKanban();
-    // Troque a última linha original por esta condição:
-    if (podeSalvar) salvarKanbanNoFirebase();
+    atualizarContadoresWorkflow();
+    
+    // 🎯 DISPARA AS NOTIFICAÇÕES AO FINAL DO DESENHO
+    renderizarNotificacoes();
 }
 
-// Funções de Drop (Soltar)
-function permitirSoltar(ev) {
-    ev.preventDefault(); // Necessário para permitir o drop
+// === CONTROLE DO ARRASTO (Travas de Segurança Atualizadas) ===
+function desativarDragCard(id) { 
+    let el = document.getElementById(id);
+    if(el) el.setAttribute('draggable', 'false'); 
+}
+function ativarDragCard(id) { 
+    let el = document.getElementById(id);
+    if(el) el.setAttribute('draggable', 'true'); 
 }
 
-function soltarCard(ev) {
+// === CONTROLE LOGÍSTICO DAS CORES DE STATUS (MUDANÇA DE REGRAS) ===
+// Quando muda a cor:
+function mudarCorStatusCard(cardId, novaCor) {
+    let card = dadosWorkflowKanban.find(c => c.id == cardId);
+    if (!card) return;
+
+    if (card.statusCor !== novaCor) card.dataModificacao = getHojeStr(); // Gatilho de Data
+
+    // MÁGICA: Se o utilizador mudou a cor logo depois de criar, ele deixa de ser "Novo".
+    if (card.isNovo) delete card.isNovo;
+
+    // Se o card pertence ao bloco de NOTAS, ele não avança na esteira operacional ao ficar verde!
+    if (card.etapa === 'NOTAS') {
+        card.statusCor = novaCor;
+        if (novaCor === 'verde') {
+            card.dataConclusaoNota = Date.now(); // Registra o carimbo de data/hora do expurgo
+        } else {
+            delete card.dataConclusaoNota; // Se mudar de cor, cancela a contagem de expurgo
+        }
+    } else {
+        // MANTÉM A SUA REGRA ORIGINAL DO CICLO OPERACIONAL BANCÁRIO PARA AS OUTRAS COLUNAS
+        card.statusCor = novaCor;
+        if (novaCor === 'verde') {
+            let indexAtual = ordemEtapasWorkflow.indexOf(card.etapa);
+            if (indexAtual !== -1 && indexAtual < ordemEtapasWorkflow.length - 1) {
+                card.etapa = ordemEtapasWorkflow[indexAtual + 1];
+                card.statusCor = 'amarelo'; 
+            } else if (card.etapa === 'ACOMPANHAMENTO') {
+                dadosWorkflowKanban = dadosWorkflowKanban.filter(c => c.id != cardId); 
+            }
+        }
+    }
+    salvarKanbanNoFirebase();
+    renderizarWorkflowKanban();
+}
+
+// === SISTEMA DE EXPURGO AUTOMÁTICO DE 30 DIAS (NOTAS VERDES) ===
+function verificarExpurgoNotasTrintaDias() {
+    let alterouMatriz = false;
+    const trintaDiasEmMs = 30 * 24 * 60 * 60 * 1000;
+    const agora = Date.now();
+
+    dadosWorkflowKanban = dadosWorkflowKanban.filter(card => {
+        if (card.etapa === 'NOTAS' && card.statusCor === 'verde' && card.dataConclusaoNota) {
+            if (agora - card.dataConclusaoNota >= trintaDiasEmMs) {
+                alterouMatriz = true;
+                return false; // Remove da memória
+            }
+        }
+        return true;
+    });
+
+    if (alterouMatriz) salvarKanbanNoFirebase();
+}
+
+// Alinhamento na criação de novos cards
+function criarCardAvulsoWorkflow(etapaAlvo) {
+    let alvo = typeof etapaAlvo === 'string' ? etapaAlvo : 'NOTAS'; 
+    // Adicionamos o "isNovo: true" para o sistema prender no topo enquanto você escreve
+    let novoCard = { id: 'wk_' + Date.now(), etapa: alvo, statusCor: 'amarelo', texto: "", textoPuro: "", dataModificacao: getHojeStr(), isNovo: true };
+    dadosWorkflowKanban.unshift(novoCard); 
+    salvarKanbanNoFirebase(); renderizarWorkflowKanban();
+    setTimeout(() => { document.getElementById(novoCard.id)?.querySelector('.card-editor')?.focus(); }, 100);
+}
+
+// === FUNÇÃO DE MINIMIZAR A ABA DE NOTAS ===
+function toggleMinimizarNotas() {
+    let colNotas = document.getElementById('coluna_notas');
+    if (colNotas) {
+        colNotas.classList.toggle('is-minimized');
+    }
+}
+
+// === FILTROS DE VISUALIZAÇÃO INTELIGENTES (Com memória de navegação) ===
+function filtrarVisualizacaoColunas(filtro, btnElement = null) {
+    window.filtroAtualKanban = filtro; // Guarda o estado atual da aba
+    
+    // Tratamento de botões (Muda a cor do ativo)
+    if (btnElement) {
+        document.querySelectorAll('.btn-filter-kanban').forEach(btn => btn.classList.remove('active'));
+        btnElement.classList.add('active');
+    }
+
+    // Se houver uma pesquisa em andamento e o usuário clicar num filtro, a pesquisa é limpa
+    let searchInput = document.getElementById('kanban_search_input');
+    if (searchInput && searchInput.value.trim() !== "" && event && event.type === "click") {
+        searchInput.value = "";
+        document.querySelectorAll('.kanban-card').forEach(c => c.style.display = 'flex');
+    }
+
+    let colunas = document.querySelectorAll('.kanban-coluna-workflow');
+    let separador = document.getElementById('separador_notas');
+
+    colunas.forEach(col => {
+        if (filtro === 'TODOS') { 
+            col.style.display = 'flex'; 
+            col.classList.remove('focus-single'); 
+            if (separador) separador.style.display = 'block';
+        } else {
+            if (col.dataset.etapa === filtro) { 
+                col.style.display = 'flex'; 
+                col.classList.add('focus-single'); 
+                if (filtro === 'NOTAS') col.classList.remove('is-minimized'); // Abre Notas automaticamente
+            } else { 
+                col.style.display = 'none'; 
+                col.classList.remove('focus-single'); 
+            }
+            if (separador) separador.style.display = 'none';
+        }
+    });
+}
+
+// === O MOTOR DA PESQUISA EM TEMPO REAL ===
+function pesquisarCardsKanban() {
+    let input = document.getElementById('kanban_search_input');
+    if (!input) return;
+    
+    let termo = input.value.toLowerCase().trim();
+    let colunas = document.querySelectorAll('.kanban-coluna-workflow');
+    let separador = document.getElementById('separador_notas');
+    
+    // 1. Se a barra for esvaziada (usuário apagou o texto), restaura o painel como estava
+    if (termo === "") {
+        document.querySelectorAll('.kanban-card').forEach(c => c.style.display = 'flex');
+        let filtroAtual = window.filtroAtualKanban || 'TODOS';
+        filtrarVisualizacaoColunas(filtroAtual);
+        return;
+    }
+
+    // 2. Esconde TODAS as colunas e o separador por padrão
+    colunas.forEach(col => {
+        col.style.display = 'none';
+        col.classList.remove('focus-single');
+        col.classList.remove('is-minimized'); // Garante que a coluna vai abrir inteira se tiver resultado
+    });
+    if (separador) separador.style.display = 'none';
+
+    // 3. Varre os cards cruzando a pesquisa
+    let cards = document.querySelectorAll('.kanban-card');
+    cards.forEach(card => {
+        // Pega todo o texto escrito dentro da nota do card
+        let editor = card.querySelector('.card-editor');
+        if (editor && editor.innerText.toLowerCase().includes(termo)) {
+            card.style.display = 'flex'; // Mostra a tarefa
+            
+            // MÁGICA: Se a tarefa apareceu, a coluna "mãe" dela NASCE na tela novamente!
+            let colunaPai = card.closest('.kanban-coluna-workflow');
+            if (colunaPai) colunaPai.style.display = 'flex';
+        } else {
+            card.style.display = 'none'; // Esconde a tarefa
+        }
+    });
+
+    // 4. Detalhe estético: A Divisória Sutil só aparece se a aba NOTAS e mais alguma estiverem na tela juntas
+    let notasVisivel = document.getElementById('coluna_notas')?.style.display === 'flex';
+    let outrasVisiveis = Array.from(colunas).some(c => c.id !== 'coluna_notas' && c.style.display === 'flex');
+    if (separador && notasVisivel && outrasVisiveis) {
+        separador.style.display = 'block';
+    }
+}
+
+// === ARRASTAR E SOLTAR COM AUTO-SCROLL E MIRA VERTICAL ===
+
+function permitirSoltar(ev) { 
+    ev.preventDefault(); 
+    
+    // 1. AUTO-SCROLL VERTICAL (Rola a lista de cards se chegar perto da borda)
+    let container = ev.target.closest('.kanban-cards-container');
+    if (container) {
+        let rect = container.getBoundingClientRect();
+        let distanceToTop = ev.clientY - rect.top;
+        let distanceToBottom = rect.bottom - ev.clientY;
+        let edgeSize = 45; // Zona de ativação do scroll
+        
+        if (distanceToBottom < edgeSize) container.scrollTop += 8;
+        else if (distanceToTop < edgeSize) container.scrollTop -= 8;
+    }
+
+    // 2. AUTO-SCROLL HORIZONTAL (Rola o carrossel inteiro para os lados)
+    let viewport = document.getElementById('kanban_workflow_carousel');
+    if (viewport) {
+        let vRect = viewport.getBoundingClientRect();
+        if (vRect.right - ev.clientX < 50) viewport.scrollLeft += 10;
+        else if (ev.clientX - vRect.left < 50) viewport.scrollLeft -= 10;
+    }
+
+    // 3. LIMPEZA DOS FEEDBACKS ANTERIORES
+    document.querySelectorAll('.kanban-card').forEach(c => {
+        c.classList.remove('drag-over-top', 'drag-over-bottom');
+    });
+
+    // 4. MIRA SUTIL (Desenha a linha indicando onde vai cair)
+    let targetCard = ev.target.closest('.kanban-card:not(.is-dragging)');
+    if (targetCard) {
+        let box = targetCard.getBoundingClientRect();
+        // Se o mouse estiver na metade de cima do card, desenha a linha em cima, senão embaixo.
+        if (ev.clientY < box.top + box.height / 2) {
+            targetCard.classList.add('drag-over-top');
+        } else {
+            targetCard.classList.add('drag-over-bottom');
+        }
+    }
+}
+
+function dragCardWorkflow(ev, cardId) {
+    ev.dataTransfer.setData("text/plain", cardId);
+    setTimeout(() => document.getElementById(cardId)?.classList.add('is-dragging'), 0);
+}
+
+function dragEndWorkflow(ev, cardId) { 
+    let el = document.getElementById(cardId);
+    if(el) el.classList.remove('is-dragging'); 
+    
+    // Varre e limpa qualquer linha fantasma que tenha sobrado
+    document.querySelectorAll('.kanban-card').forEach(c => {
+        c.classList.remove('drag-over-top', 'drag-over-bottom');
+    });
+}
+
+function soltarCardWorkflow(ev, destinoEtapa) {
     ev.preventDefault();
-    let idCard = ev.dataTransfer.getData('text/plain');
-    let card = document.getElementById(idCard);
     
-    // Descobre em qual coluna o usuário soltou
-    let colunaDestino = ev.target.closest('.kanban-coluna');
-    if (colunaDestino && card) {
-        let container = colunaDestino.querySelector('.kanban-cards-container');
-        container.appendChild(card); // Move o card para o final da coluna
-        atualizarContadoresKanban();
-        salvarKanbanNoFirebase(); // Gatilho de Salvamento
+    // Limpa a estética antes de processar
+    document.querySelectorAll('.kanban-card').forEach(c => {
+        c.classList.remove('drag-over-top', 'drag-over-bottom');
+    });
+
+    let cardId = ev.dataTransfer.getData("text/plain");
+    let cardMovid = dadosWorkflowKanban.find(c => c.id == cardId);
+    if (!cardMovid) return;
+
+    // GATILHO DE DATA: Só muda a data se MUDOU DE ETAPA (Arrastar verticalmente não muda a data)
+    if (cardMovid.etapa !== destinoEtapa) {
+        cardMovid.dataModificacao = getHojeStr();
     }
+
+    cardMovid.etapa = destinoEtapa;
+
+    let oldIndex = dadosWorkflowKanban.findIndex(c => c.id == cardId);
+    if(oldIndex !== -1) dadosWorkflowKanban.splice(oldIndex, 1);
+
+    let containerVisual = document.getElementById(`list_${destinoEtapa.toLowerCase()}`);
+    let cardsWfElement = Array.from(containerVisual.querySelectorAll('.kanban-card:not(.is-dragging)'));
+
+    let proximoElementoVisivel = cardsWfElement.find(cEl => {
+        let box = cEl.getBoundingClientRect();
+        return ev.clientY < (box.top + box.height / 2);
+    });
+
+    if (proximoElementoVisivel) {
+        let newIndex = dadosWorkflowKanban.findIndex(c => c.id == proximoElementoVisivel.id);
+        dadosWorkflowKanban.splice(newIndex, 0, cardMovid);
+    } else {
+        dadosWorkflowKanban.push(cardMovid);
+    }
+
+    salvarKanbanNoFirebase();
+    renderizarWorkflowKanban();
 }
 
-function deletarCardKanban(idCard) {
-    if(confirm("Tem certeza que deseja excluir esta pendência?")) {
-        let card = document.getElementById(idCard);
-        if(card) card.remove();
-        atualizarContadoresKanban();
-        salvarKanbanNoFirebase();
+function excluirCardWorkflow(cardId) {
+    if(confirm("Deseja remover esta pendência?")) {
+        dadosWorkflowKanban = dadosWorkflowKanban.filter(c => c.id != cardId);
+        salvarKanbanNoFirebase(); renderizarWorkflowKanban();
     }
 }
-
-function atualizarContadoresKanban() {
-    document.querySelectorAll('.kanban-coluna').forEach(col => {
-        let qtd = col.querySelectorAll('.kanban-card').length;
-        col.querySelector('.card-count').innerText = qtd;
+function atualizarContadoresWorkflow() {
+    ordemEtapasWorkflow.forEach(etapa => {
+        let qtd = dadosWorkflowKanban.filter(c => c.etapa === etapa).length;
+        let el = document.getElementById(`count_${etapa.toLowerCase()}`);
+        if (el) el.innerText = qtd;
     });
 }
 
-// =========================================================================
-// INTEGRAÇÃO REAL COM O FIREBASE FIRESTORE
-// =========================================================================
-
-function salvarKanbanNoFirebase() {
-    let quadroState = { fazer: [], andamento: [], concluido: [] };
-    
-    ['coluna_fazer', 'coluna_andamento', 'coluna_concluido'].forEach(colId => {
-        let key = colId.split('_')[1];
-        document.querySelectorAll(`#${colId} .kanban-card`).forEach(card => {
-            quadroState[key].push(card.querySelector('.card-editor').innerHTML);
-        });
-    });
-    
-    // O seu interceptador vai pegar essa linha abaixo e jogar pro Firebase na mesma hora!
-    localStorage.setItem('kanban_backup_local', JSON.stringify(quadroState));
-}
-
+// Adaptado para ler/salvar no mesmo lugar que o seu anterior (Migração Transparente)
+function salvarKanbanNoFirebase() { localStorage.setItem('kanban_backup_local', JSON.stringify(dadosWorkflowKanban)); }
 function carregarKanbanDoFirebase() {
     let salvo = localStorage.getItem('kanban_backup_local');
     if (salvo) {
-        let quadroState = JSON.parse(salvo);
-        
-        document.querySelectorAll('.kanban-cards-container').forEach(c => c.innerHTML = '');
-        
-        // O terceiro parâmetro (false) impede loopings de salvamento durante o carregamento
-        if (quadroState.concluido) quadroState.concluido.reverse().forEach(html => adicionarCardKanban('coluna_concluido', html, false));
-        if (quadroState.andamento) quadroState.andamento.reverse().forEach(html => adicionarCardKanban('coluna_andamento', html, false));
-        if (quadroState.fazer) quadroState.fazer.reverse().forEach(html => adicionarCardKanban('coluna_fazer', html, false));
+        let dados = JSON.parse(salvo);
+        // Mecanismo de Migração: Se for o formato antigo (fazer, andamento, concluido), converte para o novo.
+        if (!Array.isArray(dados) && dados.fazer) {
+            dadosWorkflowKanban = [];
+            dados.fazer.forEach(txt => dadosWorkflowKanban.push({id: 'wk_'+Date.now()+Math.random(), etapa: 'CADASTROS', statusCor: 'amarelo', texto: txt}));
+            dados.andamento.forEach(txt => dadosWorkflowKanban.push({id: 'wk_'+Date.now()+Math.random(), etapa: 'PCE', statusCor: 'azul', texto: txt}));
+            dados.concluido.forEach(txt => dadosWorkflowKanban.push({id: 'wk_'+Date.now()+Math.random(), etapa: 'DESEMBOLSOS', statusCor: 'verde', texto: txt}));
+        } else {
+            dadosWorkflowKanban = Array.isArray(dados) ? dados : [];
+        }
+        renderizarWorkflowKanban();
     }
-}
-
-function abrirAbaPainel(idDaAba) {
-    // 1. Esconde a tela do Painel Gerencial (os botões)
-    document.getElementById('secao_painel_gerencial').style.display = 'none';
-    
-    // 2. Mostra a aba do Kanban
-    document.getElementById(idDaAba).style.display = 'block';
-
-    // Dispara a busca no Firebase exatamente no momento em que a aba Kanban é aberta
-    if (idDaAba === 'aba_kanban_tarefas') {
-        carregarKanbanDoFirebase();
-    }
-    
-    // Opcional: Chama a função que esconde aquele bloco de notas lateral (se quiser a tela 100% limpa)
-    if(typeof alternarBlocoNotas === 'function') alternarBlocoNotas(false);
-}
-
-function fecharKanban() {
-    let abaKanban = document.getElementById('aba_kanban_tarefas');
-    let painelGerencial = document.getElementById('secao_painel_gerencial');
-    
-    if (abaKanban) abaKanban.style.display = 'none';
-    if (painelGerencial) painelGerencial.style.display = 'block';
 }
 
 function abrirModuloKanban() {
-    // Abre a tela cheia
     document.getElementById('modal_kanban_tarefas').style.display = 'flex';
-    
-    // Gatilho de segurança: força o carregamento da nuvem sempre que a tela for aberta
-    if (typeof carregarKanbanDoFirebase === 'function') {
-        carregarKanbanDoFirebase();
+    carregarKanbanDoFirebase();
+}
+function fecharKanban() {
+    document.getElementById('modal_kanban_tarefas').style.display = 'none';
+}
+
+// === MOTOR DE DATAS E MUDANÇAS INTELIGENTES ===
+
+// Função auxiliar: Pega a data de hoje no formato do Input
+function getHojeStr() {
+    let d = new Date();
+    let mes = '' + (d.getMonth() + 1);
+    let dia = '' + d.getDate();
+    if (mes.length < 2) mes = '0' + mes;
+    if (dia.length < 2) dia = '0' + dia;
+    return [d.getFullYear(), mes, dia].join('-');
+}
+
+// 1. Atualização Manual Pelo Usuário
+function atualizarDataManual(cardId, novaData) {
+    let card = dadosWorkflowKanban.find(c => c.id == cardId);
+    if(card) { card.dataModificacao = novaData; salvarKanbanNoFirebase(); }
+}
+
+// =========================================================================
+// MOTOR DE AUTO-SAVE INTELIGENTE DO TEXTO (COM DATA CIRÚRGICA)
+// =========================================================================
+let timerSalvarKanban;
+
+// Função "descascadora" para lidar com cards antigos que não tinham texto puro salvo
+function extrairTextoPuro(html) {
+    let tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html || "";
+    return tempDiv.innerText || tempDiv.textContent || "";
+}
+
+// 1. Atualização Rápida (Executa enquanto você digita)
+function atualizarTextoLocal(cardId, novoHtml, novoTextoPuro) {
+    let card = dadosWorkflowKanban.find(c => c.id == cardId);
+    if (card) {
+        // MÁGICA DA DATA: Pega o texto puro antigo (se não tiver, extrai na hora)
+        let puroAntigo = typeof card.textoPuro !== 'undefined' ? card.textoPuro : extrairTextoPuro(card.texto);
+        
+        // Remove TODOS os espaços, quebras de linha e formatações para uma comparação implacável
+        let limpoAntigo = puroAntigo.replace(/\s+/g, '');
+        let limpoNovo = (novoTextoPuro || "").replace(/\s+/g, '');
+        
+        // SÓ atualiza a data se o CONTEÚDO (letras/números) mudou de verdade
+        if (limpoAntigo !== limpoNovo) {
+            card.dataModificacao = getHojeStr();
+            let dateInput = document.querySelector(`#${card.id} .card-date-input`);
+            if(dateInput) dateInput.value = card.dataModificacao; // Atualiza na tela sem piscar
+        }
+        
+        card.texto = novoHtml;
+        card.textoPuro = novoTextoPuro;
+        
+        // Salva silenciosamente na nuvem após 1 segundo sem digitar
+        clearTimeout(timerSalvarKanban);
+        timerSalvarKanban = setTimeout(() => {
+            salvarKanbanNoFirebase();
+        }, 1000);
     }
 }
+
+// 2. Salvamento Imediato (Executa quando você clica fora da tarefa)
+function salvarTextoFirebase(cardId, novoHtml, novoTextoPuro) {
+    let card = dadosWorkflowKanban.find(c => c.id == cardId);
+    if (card) {
+        let puroAntigo = typeof card.textoPuro !== 'undefined' ? card.textoPuro : extrairTextoPuro(card.texto);
+        let limpoAntigo = puroAntigo.replace(/\s+/g, '');
+        let limpoNovo = (novoTextoPuro || "").replace(/\s+/g, '');
+        
+        if (limpoAntigo !== limpoNovo) {
+            card.dataModificacao = getHojeStr();
+            let dateInput = document.querySelector(`#${card.id} .card-date-input`);
+            if(dateInput) dateInput.value = card.dataModificacao; 
+        }
+
+        card.texto = novoHtml;
+        card.textoPuro = novoTextoPuro;
+        limparNotificacaoPorInteracao(card);
+        
+        // AQUI ACONTECE A MÁGICA DA DESCIDA!
+        let eraNovo = card.isNovo;
+        if (eraNovo) {
+            delete card.isNovo; // Arranca a etiqueta de topo
+        }
+        
+        clearTimeout(timerSalvarKanban);
+        salvarKanbanNoFirebase();
+        
+        // Se era uma nota nova, o sistema redesenha a tela para ela descer pro lugar certo
+        if (eraNovo) {
+            setTimeout(() => {
+                let focoAtual = document.activeElement;
+                let idFocado = focoAtual && focoAtual.classList.contains('card-editor') ? focoAtual.closest('.kanban-card').id : null;
+                
+                renderizarWorkflowKanban(); // Reorganiza (a nota desce para o topo das amarelas)
+                
+                // Se você clicou direto dentro de OUTRA nota, devolve o cursor para você continuar escrevendo
+                if (idFocado) {
+                    let novoFoco = document.getElementById(idFocado)?.querySelector('.card-editor');
+                    if (novoFoco) novoFoco.focus();
+                }
+            }, 150); // Fôlego rápido pro navegador processar o clique
+        }
+    }
+}
+
+// Quando altera coluna pelo Roteador (Select):
+function rotearCardViaMenu(cardId, destinoEtapa) {
+    let card = dadosWorkflowKanban.find(c => c.id == cardId);
+    if (card && card.etapa !== destinoEtapa) { 
+        card.dataModificacao = getHojeStr(); // Gatilho de Data
+        card.etapa = destinoEtapa; 
+        limparNotificacaoPorInteracao(card); // Adicione esta linha!
+        salvarKanbanNoFirebase(); renderizarWorkflowKanban(); 
+    }
+}
+
+// =========================================================================
+// SISTEMA DE NOTIFICAÇÕES, LEMBRETES E ESTAGNAÇÃO
+// =========================================================================
+
+// Cria o modal de escolha de data/hora de forma oculta no fundo da tela
+function injetarModalLembrete() {
+    if(document.getElementById('modal_lembrete_kanban')) return;
+    let html = `
+    <div id="modal_lembrete_kanban" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:100000; align-items:center; justify-content:center;">
+        <div style="background:#fff; padding:20px; border-radius:8px; width:320px; box-shadow:0 4px 10px rgba(0,0,0,0.2);">
+            <h4 style="margin-top:0; color:var(--primary-color,#800000);">⏰ Agendar Lembrete</h4>
+            <p style="font-size:12px; color:#666;">Escolha a data e o horário (opcional).</p>
+            
+            <div style="display:flex; gap:10px; margin-bottom:15px;">
+                <input type="date" id="input_data_lembrete" style="flex:2; padding:8px; border:1px solid #ccc; border-radius:4px; box-sizing:border-box;">
+                <input type="time" id="input_hora_lembrete" style="flex:1; padding:8px; border:1px solid #ccc; border-radius:4px; box-sizing:border-box;">
+            </div>
+            
+            <input type="hidden" id="lembrete_card_id_ativo">
+            <div style="display:flex; justify-content:space-between; gap:10px;">
+                <button onclick="salvarLembreteModal(true)" style="padding:6px 12px; border:none; background:#ffeb3b; color:#333; cursor:pointer; border-radius:4px; font-weight:bold; font-size:11px;">Limpar Alarme</button>
+                <div style="display:flex; gap:5px;">
+                    <button onclick="document.getElementById('modal_lembrete_kanban').style.display='none'" style="padding:6px 12px; border:1px solid var(--primary-color,#800000); background:#fff; color:var(--primary-color,#800000); cursor:pointer; border-radius:4px; font-weight:bold;">Cancelar</button>
+                    <button onclick="salvarLembreteModal(false)" style="padding:6px 12px; border:1px solid var(--primary-color,#800000); background:var(--primary-color,#800000); color:#fff; cursor:pointer; border-radius:4px; font-weight:bold;">Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function abrirModalLembrete(cardId) {
+    injetarModalLembrete();
+    document.getElementById('lembrete_card_id_ativo').value = cardId;
+    let card = dadosWorkflowKanban.find(c => c.id == cardId);
+    document.getElementById('input_data_lembrete').value = (card && card.lembreteData) ? card.lembreteData : "";
+    document.getElementById('input_hora_lembrete').value = (card && card.lembreteHora) ? card.lembreteHora : "";
+    document.getElementById('modal_lembrete_kanban').style.display = 'flex';
+}
+
+function salvarLembreteModal(limpar = false) {
+    let cardId = document.getElementById('lembrete_card_id_ativo').value;
+    let d = document.getElementById('input_data_lembrete').value;
+    let h = document.getElementById('input_hora_lembrete').value;
+    let card = dadosWorkflowKanban.find(c => c.id == cardId);
+    
+    if(card) {
+        if(!limpar && d) {
+            card.lembreteData = d;
+            card.lembreteHora = h;
+            card.lembreteDispensado = false; // Reativa
+        } else {
+            delete card.lembreteData;
+            delete card.lembreteHora;
+        }
+        salvarKanbanNoFirebase();
+        renderizarWorkflowKanban();
+    }
+    document.getElementById('modal_lembrete_kanban').style.display = 'none';
+}
+
+// 🎯 DESENHA AS NOTIFICAÇÕES NO TOPO DA ABA DE NOTAS
+function renderizarNotificacoes() {
+    let containerNotas = document.getElementById('list_notas');
+    if(!containerNotas) return;
+
+    let wrapperAntigo = document.getElementById('kanban_notifications_wrapper');
+    if(wrapperAntigo) wrapperAntigo.remove();
+
+    let notificationsHTML = '';
+    let agora = new Date();
+    let hojeStr = getHojeStr(); // Já nos dá o formato YYYY-MM-DD
+    let trintaDiasMs = 30 * 24 * 60 * 60 * 1000;
+
+    dadosWorkflowKanban.forEach(card => {
+        
+        // MÁGICA 2: "Descascador" de HTML (Lê sempre o início do texto real, mesmo em cards antigos)
+        let puro = card.textoPuro;
+        if (!puro) {
+            let tempDiv = document.createElement('div');
+            tempDiv.innerHTML = card.texto;
+            puro = tempDiv.innerText || tempDiv.textContent || "";
+        }
+        let textoResumo = puro.trim() ? puro.trim().substring(0, 55) + '...' : 'Nota sem descrição...';
+
+        // 1. Lembretes Manuais Agendados
+        if (card.lembreteData && !card.lembreteDispensado) {
+            
+            // MÁGICA 3 e 4: Acionamento Imediato no "Mesmo Dia" ou 00:00.
+            // Se a data escolhida for Hoje (ou menor que hoje), aciona na hora ignorando o horário!
+            if (card.lembreteData <= hojeStr) {
+                let dataFormatada = card.lembreteData.split('-').reverse().join('/');
+                let horaFormatada = card.lembreteHora ? ` às ${card.lembreteHora}` : '';
+                
+                notificationsHTML += `
+                <div class="notif-mini-card">
+                    <div class="notif-header"><span>⏰ Agendado para: ${dataFormatada}${horaFormatada}</span><button class="btn-lembrete-icon" onclick="abrirModalLembrete('${card.id}')" title="Reagendar">⏰</button></div>
+                    <div class="notif-body"><strong>${nomesAmigaveisEtapas[card.etapa]}:</strong> ${textoResumo}</div>
+                    <div class="notif-actions">
+                        <button class="btn-notif btn-notif-verify" onclick="focarCardKanban('${card.id}', false)">Verificar</button>
+                        <button class="btn-notif btn-notif-dismiss" onclick="dispensarNotificacao('${card.id}', false)">Dispensar</button>
+                    </div>
+                </div>`;
+            }
+        }
+
+        // 2. Estagnação Automática (> 30 dias parado em Vermelho ou Amarelo)
+        if ((card.statusCor === 'vermelho' || card.statusCor === 'amarelo') && card.etapa !== 'NOTAS' && card.etapa !== 'ACOMPANHAMENTO') {
+            let p = card.dataModificacao.split('-'); 
+            let dataMod = new Date(p[0], p[1]-1, p[2]);
+            if (agora - dataMod >= trintaDiasMs && !card.estagnacaoDispensada) {
+                notificationsHTML += `
+                <div class="notif-mini-card stagnant">
+                    <div class="notif-header"><span>⚠️ Sem avanço > 30 dias</span></div>
+                    <div class="notif-body"><strong>${nomesAmigaveisEtapas[card.etapa]}:</strong> ${textoResumo}</div>
+                    <div class="notif-actions">
+                        <button class="btn-notif btn-notif-verify" onclick="focarCardKanban('${card.id}', true)">Verificar</button>
+                        <button class="btn-notif btn-notif-dismiss" onclick="dispensarNotificacao('${card.id}', true)">Dispensar</button>
+                    </div>
+                </div>`;
+            }
+        }
+    });
+
+    // Injeta na tela
+    if (notificationsHTML !== '') {
+        let wrapper = document.createElement('div');
+        wrapper.id = 'kanban_notifications_wrapper';
+        wrapper.innerHTML = notificationsHTML + `<div style="width:100%; height:2px; background:#ccc; margin-top:5px; border-radius:2px;"></div>`;
+        containerNotas.insertBefore(wrapper, containerNotas.firstChild);
+        
+        // Coloca o 'sininho' se a aba de notas estiver minimizada
+        document.getElementById('coluna_notas')?.classList.add('has-notifications');
+    } else {
+        document.getElementById('coluna_notas')?.classList.remove('has-notifications');
+    }
+}
+
+// Ações de Dispensar e Focar
+function dispensarNotificacao(cardId, isStagnant) {
+    let card = dadosWorkflowKanban.find(c => c.id == cardId);
+    if(card) {
+        if(isStagnant) card.estagnacaoDispensada = true;
+        else card.lembreteDispensado = true;
+        salvarKanbanNoFirebase(); renderizarWorkflowKanban();
+    }
+}
+
+function focarCardKanban(cardId, isStagnant) {
+    dispensarNotificacao(cardId, isStagnant);
+
+    let card = dadosWorkflowKanban.find(c => c.id == cardId);
+    if(!card) return;
+
+    let filtroAtual = window.filtroAtualKanban || 'TODOS';
+    if(filtroAtual !== 'TODOS' && filtroAtual !== card.etapa) {
+        filtrarVisualizacaoColunas('TODOS', document.getElementById('btn_filter_all'));
+    }
+    
+    let viewport = document.getElementById('kanban_workflow_carousel');
+    let colEl = document.getElementById(`list_${card.etapa.toLowerCase()}`).parentElement;
+    if(viewport && colEl) {
+        viewport.scrollTo({ left: colEl.offsetLeft - 20, behavior: 'smooth' });
+    }
+
+    setTimeout(() => {
+        let cardEl = document.getElementById(cardId);
+        if(cardEl) {
+            cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            cardEl.classList.remove('card-highlight-pulse');
+            void cardEl.offsetWidth; 
+            cardEl.classList.add('card-highlight-pulse');
+        }
+    }, 300);
+}
+
+function limparNotificacaoPorInteracao(card) {
+    let hojeStr = getHojeStr();
+    if (card.lembreteData && card.lembreteData <= hojeStr) {
+        card.lembreteDispensado = true; 
+    }
+    card.estagnacaoDispensada = false; 
+}
+
+setInterval(renderizarNotificacoes, 60000);
+
+// =========================================================================
+// MENU FLUTUANTE DE SITUAÇÕES (GATILHO NA BORDA)
+// =========================================================================
+
+function toggleMenuCorCard(ev, cardId) {
+    ev.stopPropagation(); // Impede que o clique arraste o card acidentalmente
+    
+    // 1. Fecha qualquer outro menu que esteja aberto
+    document.querySelectorAll('.kanban-menu-cores').forEach(m => {
+        if(m.id !== 'menu_cor_' + cardId) m.style.display = 'none';
+    });
+    
+    // 2. Abre/Fecha o menu da borda clicada
+    let menu = document.getElementById('menu_cor_' + cardId);
+    if(menu) {
+        menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex';
+    }
+}
+
+// Ouvinte global: Se o utilizador clicar no vazio da tela, esconde os menus abertos
+document.addEventListener('click', function(e) {
+    if(!e.target.closest('.kanban-menu-cores') && !e.target.closest('.trigger-borda-cor')) {
+        document.querySelectorAll('.kanban-menu-cores').forEach(m => m.style.display = 'none');
+    }
+});
+
 
 </script>
 
