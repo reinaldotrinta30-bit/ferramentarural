@@ -11,6 +11,10 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         :root {
             /* Paleta Banco do Nordeste */
@@ -1000,6 +1004,114 @@
     }
     @keyframes pulse-bell { 0% { transform: scale(1); } 100% { transform: scale(1.3); } }
 
+    /* =========================================================================
+   ALTURA FIXA DOS CARDS E MODO FOCO (EXPANSÃO) - VERSÃO BLINDADA DEFINITIVA
+========================================================================= */
+
+/* 1. Limite de Altura em Modo Normal (Controla o tamanho padrão das tarefas) */
+.kanban-card:not(.fullscreen-mode) .card-editor {
+    max-height: 120px; /* 👈 Altere este número para ajustar a altura fixa dos cards visíveis */
+    overflow-y: auto;  /* Se o texto for maior, cria uma rolagem interna discreta */
+}
+
+/* 2. O Botão Discreto de Expandir (Canto inferior direito) */
+.btn-expandir-card {
+    position: absolute;
+    bottom: 5px;
+    right: 8px;
+    background: transparent;
+    border: none;
+    color: #999;
+    font-size: 16px;
+    cursor: pointer;
+    opacity: 0; /* Oculto por padrão */
+    transition: all 0.3s ease;
+    z-index: 10;
+}
+.kanban-card:hover .btn-expandir-card {
+    opacity: 1; /* Revela suavemente ao passar o mouse sobre o card */
+}
+.btn-expandir-card:hover {
+    color: var(--primary-color, #800000);
+    transform: scale(1.2);
+}
+
+/* 3. Película Anti-Clique Protetora (Bloqueia o painel principal de forma implacável) */
+#kanban_fullscreen_overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; 
+    width: 100vw; height: 100vh;
+    background: transparent; /* Totalmente invisível para não quebrar ou distorcer os componentes de texto */
+    z-index: 999998 !important; /* Camada posicionada exatamente abaixo do Card Expandido, mas acima de todo o resto */
+    cursor: pointer;
+    pointer-events: auto !important; /* CAPTURA E BLOQUEIA INTEIRAMENTE Cliques, Edições e Cliques fantasmas no fundo */
+}
+
+/* 4. O Cartão Gigante no Centro da Tela (Modo Foco) */
+.kanban-card.fullscreen-mode {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: 80% !important;
+    max-width: 900px !important;
+    height: 85vh !important;
+    z-index: 9999999 !important; /* Camada superior mestre isolada de tudo */
+    background: #ffffff !important;
+    display: flex !important;
+    flex-direction: column !important;
+    border-radius: 8px !important;
+    /* Esta sombra nativa executa o escurecimento do painel traseiro sem causar bugs visuais nos inputs */
+    box-shadow: 0 0 0 9999px rgba(0,0,0,0.75), 0 10px 30px rgba(0,0,0,0.5) !important;
+    cursor: default !important;
+    pointer-events: auto !important; /* Mantém cliques, seleções de texto e toolbar ativos dentro dele */
+}
+
+/* 5. O Comportamento do Texto e Elementos Internos no Modo Foco */
+.kanban-card.fullscreen-mode .card-editor {
+    max-height: none !important; /* Libera a limitação de altura */
+    flex: 1; /* Estica para preencher toda a área vertical útil */
+    font-size: 14px; /* Tamanho de leitura confortável */
+    padding: 10px;
+    overflow-y: auto !important; /* Rolagem fina independente estilo macOS */
+    padding-bottom: 20px;
+}
+
+/* Garante que o cabeçalho e as barras de ferramentas fiquem presos no teto do modal */
+.kanban-card.fullscreen-mode .card-drag-handle {
+    position: sticky !important;
+    top: 0 !important;
+    background: #fff !important;
+    z-index: 10 !important;
+    cursor: default !important;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+    margin-bottom: 10px;
+    flex-direction: column;
+    align-items: stretch !important;
+}
+
+/* 6. Travamento de Scroll Global */
+body.kanban-zen-active {
+    overflow: hidden !important; /* Impede que a rodinha do mouse mova a esteira do carrossel ao fundo */
+}
+
+/* 7. Elemento de Destaque para a Busca Interna (Estilo Ctrl + F) */
+.kanban-highlight-match {
+    background-color: #ffeb3b !important; /* Amarelo clássico de busca */
+    color: #000 !important;
+    border-radius: 2px;
+    box-shadow: 0 0 4px #fbc02d;
+    display: inline !important;
+}
+
+/* 8. Classes de Controle de Visibilidade */
+.show-on-fullscreen { display: none !important; }
+.kanban-card.fullscreen-mode .show-on-fullscreen { display: flex !important; }
+.kanban-card.fullscreen-mode .hide-on-fullscreen { display: none !important; }
+.kanban-card.fullscreen-mode .btn-expandir-card { display: none !important; }
+
 /* ========================================================
    REESTRUTURAÇÃO ÚNICA E DEFINITIVA PARA MOBILE (Até 768px)
    ======================================================== */
@@ -1093,6 +1205,247 @@
     }
 }
     </style>
+
+
+<style>
+        /* =========================================================================
+           DESIGN SYSTEM - HIGH DENSITY & ELEGANCE (Estilo Retaguarda)
+           ========================================================================= */
+        :root {
+            /* Paleta Institucional (Sutil) */
+            --bn-verde-escuro: #004C27;
+            --bn-verde-claro: #00A550;
+            --bn-amarelo: #D99700;
+            
+            /* Cores de Interface (Sóbrias) */
+            --ui-bg-workspace: #F3F4F6;
+            --ui-bg-panel: #FFFFFF;
+            --ui-bg-module: #F8FAFC;
+            --ui-border: #CBD5E1;
+            --ui-border-light: #E2E8F0;
+            --ui-text-main: #334155;
+            --ui-text-muted: #64748B;
+            --ui-danger: #DC2626;
+        }
+
+        body {
+            margin: 0;
+            padding: 10px; /* Reduzido de 20px para 10px para ganhar espaço vertical */
+            background-color: var(--ui-bg-workspace);
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            height: 100vh; /* Garante que o body tenha altura total */
+            box-sizing: border-box;
+        }
+
+        /* Estrutura Principal: Mais espaço para o painel (580px) */
+        .rs-workspace-container {
+            display: flex;
+            gap: 0;
+            height: 100%; /* ← Alterado aqui para encaixar no seu modal perfeitamente */
+            min-height: 650px;
+            background-color: var(--ui-bg-panel);
+            border: 1px solid var(--ui-border);
+            border-radius: 4px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        }
+
+        .rs-panel {
+            flex: 0 0 580px; /* Painel bem mais largo */
+            background-color: var(--ui-bg-panel);
+            padding: 16px 20px;
+            border-right: 1px solid var(--ui-border);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            box-sizing: border-box;
+        }
+
+        .rs-map-panel {
+            flex: 1;
+            position: relative;
+            background-color: #E2E8F0;
+        }
+
+        #rs-map-render { width: 100%; height: 100%; z-index: 1; }
+
+        /* Módulos (Cards mais compactos) */
+        .rs-card-module {
+            background: var(--ui-bg-module);
+            border: 1px solid var(--ui-border-light);
+            border-radius: 4px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+
+        /* Tipografia Compacta */
+        .rs-title { 
+            font-size: 1.1rem; 
+            color: var(--ui-text-main); 
+            margin: 0 0 1rem 0; 
+            font-weight: 700; 
+            text-transform: uppercase; 
+            border-bottom: 2px solid var(--bn-amarelo);
+            padding-bottom: 6px;
+        }
+        .rs-subtitle { font-size: 0.85rem; color: var(--ui-text-main); margin: 0 0 0.6rem 0; font-weight: 700; text-transform: uppercase; }
+        .rs-divider { border: 0; height: 1px; background: var(--ui-border-light); margin: 1rem 0; }
+        .rs-hidden { display: none !important; }
+        .rs-flex-row { display: flex; gap: 8px; align-items: center; }
+        .rs-flex-row .rs-input { flex: 1; }
+
+        /* Botões: Layout Horizontal em Grid e Cores Sutis */
+        .rs-action-buttons { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; /* Duas colunas perfeitas */
+            gap: 8px; 
+            margin-bottom: 10px;
+        }
+        
+        .rs-btn {
+            padding: 7px 10px;
+            border: 1px solid var(--ui-border);
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.72rem; /* Fonte reduzida para visão estratégica */
+            transition: all 0.15s ease;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            text-transform: uppercase;
+            background-color: #FFFFFF;
+            color: var(--ui-text-main);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        #rs-btn-add-gleba {
+        padding: 0 14px !important; /* Remove o excesso de altura vertical */
+        height: 30px;               /* Define uma altura fixa igual ao input */
+        line-height: 36px;
+        font-size: 1.2rem;          /* Mantém o sinal de + visível */
+        }
+        
+        /* Efeitos de Hover Elegantes (Ghost Buttons) */
+        .rs-btn:hover { background-color: var(--ui-bg-workspace); border-color: #94A3B8; }
+        
+        .rs-btn-primary { border-left: 3px solid var(--bn-verde-escuro); }
+        .rs-btn-primary:hover { background-color: #F0FDF4; border-color: var(--bn-verde-escuro); color: var(--bn-verde-escuro); }
+        
+        .rs-btn-success { border-left: 3px solid var(--bn-verde-claro); }
+        .rs-btn-success:hover { background-color: #F0FDF4; border-color: var(--bn-verde-claro); color: var(--bn-verde-claro); }
+        
+        .rs-btn-warning { border-left: 3px solid var(--bn-amarelo); }
+        .rs-btn-warning:hover { background-color: #FEFCE8; border-color: var(--bn-amarelo); color: #9A6700; }
+
+        .rs-btn-outline { border-left: 3px solid var(--ui-text-muted); }
+        
+        .rs-btn-danger { border-left: 3px solid var(--ui-danger); }
+        .rs-btn-danger:hover { background-color: #FEF2F2; border-color: var(--ui-danger); color: var(--ui-danger); }
+        
+        .rs-btn:disabled { opacity: 0.5; cursor: not-allowed; border-left-color: var(--ui-border); }
+        .rs-full-width { grid-column: span 2; justify-content: center; text-align: center; margin-top: 4px; }
+
+        /* Formulários e Inputs Mais Compactos */
+        .rs-input-group { margin-bottom: 1rem; }
+        .rs-input-group label { display: block; font-size: 0.75rem; color: var(--ui-text-main); margin-bottom: 4px; font-weight: 600; }
+        
+        .rs-input {
+            width: 100%;
+            padding: 6px 10px;
+            border: 1px solid var(--ui-border);
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 0.8rem;
+            box-sizing: border-box;
+            background-color: #FFFFFF;
+            transition: all 0.2s;
+        }
+
+        /* O Novo Contêiner Holográfico */
+        .rs-textarea-container { position: relative; width: 100%; height: 140px; }
+        
+        .rs-textarea { 
+            width: 100%; height: 100%; padding: 8px 10px; border: 1px solid var(--ui-border); border-radius: 4px; 
+            font-family: 'Consolas', 'Courier New', monospace; font-size: 0.75rem; line-height: 1.5; box-sizing: border-box; 
+            background-color: #FFFFFF; white-space: pre; overflow: auto; resize: none; color: var(--ui-text-main);
+        }
+        .rs-input:focus, .rs-textarea:focus { outline: none; border-color: var(--bn-verde-claro); box-shadow: inset 0 0 0 1px var(--bn-verde-claro); }
+        .rs-textarea::selection { background-color: var(--bn-verde-claro); color: white; }
+        
+        .rs-textarea-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            padding: 8px 10px; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.75rem; line-height: 1.5;
+            border: 1px solid transparent; box-sizing: border-box; color: transparent; pointer-events: none; overflow: hidden; white-space: pre;
+        }
+
+        .rs-edit-badge {
+            color: var(--ui-danger); font-size: 0.65rem; font-weight: 700; background-color: #FEE2E2;
+            padding: 1px 4px; border-radius: 3px; margin-left: 8px; font-family: 'Segoe UI', sans-serif;
+            border: 1px solid #FCA5A5;
+        }
+
+        /* Lista de Glebas (Checkboxes) - Visão Estratégica */
+        .rs-checklist-box {
+            border: 1px solid var(--ui-border);
+            border-radius: 4px;
+            background-color: #FFFFFF;
+            max-height: 180px;
+            overflow-y: auto;
+            padding: 4px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .rs-gleba-item-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--ui-bg-module);
+            padding: 4px 8px;
+            border-radius: 3px;
+            border: 1px solid var(--ui-border-light);
+            transition: border-color 0.2s;
+        }
+        .rs-gleba-item-row:hover { border-color: var(--bn-verde-claro); }
+        .rs-checkbox { width: 14px; height: 14px; cursor: pointer; accent-color: var(--bn-verde-claro); margin: 0; }
+        .rs-gleba-name-span { flex: 1; font-size: 0.75rem; font-weight: 600; color: var(--ui-text-main); cursor: pointer; }
+        .rs-color-picker { border: 1px solid var(--ui-border); width: 20px; height: 20px; padding: 0; background: transparent; cursor: pointer; border-radius: 3px; }
+        
+        .rs-mini-btn { background: transparent; border: 1px solid transparent; cursor: pointer; padding: 2px 4px; font-size: 0.8rem; border-radius: 3px; color: var(--ui-text-muted); }
+        .rs-mini-btn:hover { background: #E2E8F0; color: var(--ui-text-main); }
+
+        /* Alças de Edição CAD */
+        .rs-vertex-marker { background-color: #FFFFFF; border: 2px solid var(--bn-verde-claro); border-radius: 50%; cursor: grab; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+        .rs-vertex-marker:active { cursor: grabbing; border-color: var(--bn-amarelo); background-color: #FEFCE8; }
+        .rs-vertex-ghost { background-color: rgba(255, 255, 255, 0.4); border: 1px dashed var(--ui-text-muted); border-radius: 50%; cursor: pointer; transition: all 0.2s ease; }
+        .rs-vertex-ghost:hover { background-color: var(--bn-verde-claro); border-style: solid; transform: scale(1.3); }
+
+        /* Utilitários */
+        .rs-hint { display: block; font-size: 0.7rem; color: var(--ui-text-muted); margin-top: 4px; line-height: 1.3; font-weight: 500; }
+        .rs-alert { padding: 8px; border-radius: 4px; font-size: 0.75rem; margin-top: 8px; display: none; font-weight: 600;}
+        
+        /* Scrollbar Sutil */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+
+        /* Destaque para o ponto selecionado via teclado */
+        .rs-vertex-marker-highlight {
+            background-color: var(--bn-amarelo) !important;
+            border: 3px solid #FFFFFF !important;
+            transform: scale(1.4);
+            box-shadow: 0 0 10px rgba(242, 169, 0, 0.8) !important;
+        }
+
+
+    </style>
+
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 </head>
@@ -2534,6 +2887,12 @@
                     </div>
                 </div>
 
+                <div class="btn-gerador-wrapper">
+    <div class="btn-gerador" onclick="abrirVerificadorKML()">
+        <span>🗺️</span> VERIFICADOR DE KML GEODÉSICO
+    </div>
+</div>
+
             </div>
         </section>
 
@@ -3144,7 +3503,7 @@ function acionarGeradorManual() {
     let tipo = d('man_lcg_tipo');
     let descTipo = tipo === 'LCGH' ? 'Limite de Crédito Garantido por Hipoteca de bens Imóveis' : 'Limite de Crédito Garantido por Alienação Fiduciária de bens Imóveis';
     let verboGarantia = tipo === 'LCGH' ? 'Hipoteca' : 'Alienação';
-    let nomeIntervFuncional = tipo === 'LCGH' ? 'Interveniente Hipotecante' : 'Interveniente Fiduciante';
+    let nomeIntervFuncional = tipo === 'LCGH' ? 'Interveniente Hipotecante' : 'Interveniente Garantidor';
     
     let prazoNum = d('man_lcg_prazo') || "0"; let prazoExtenso = typeof converterNumeroParaExtenso === 'function' ? converterNumeroParaExtenso(prazoNum) : "zero";
 
@@ -3646,7 +4005,7 @@ function acionarGeradorManual() {
                             containerInt.querySelectorAll('.row-interv').forEach(rowInt => {
                                 let iNome = rowInt.querySelector('.inp-nome-interv').value.toUpperCase().trim();
                                 let iCpf = rowInt.querySelector('.inp-cpf-interv').value.trim();
-                                if (iNome) intervLocal.push(`ao interveniente ${tipo === 'LCGH' ? 'hipotecante' : 'fiduciante'} (${iNome} - CPF: ${iCpf})`);
+                                if (iNome) intervLocal.push(`ao interveniente ${tipo === 'LCGH' ? 'hipotecante' : 'garantidor'} (${iNome} - CPF: ${iCpf})`);
                             });
                         }
                         txtP = intervLocal.length > 0 ? `pertencente(s) ao proponente e ` + intervLocal.join(' e ') + "." : `pertencente(s) ao proponente e ao interveniente.`;
@@ -6140,11 +6499,40 @@ function processarGeradorSolicitacaoPlanta() {
                 </div>
             </div>
 
-            <div class="kanban-search-box" style="flex: 1; min-width: 200px; max-width: 400px; margin: 0 15px;">
-                <input type="text" id="kanban_search_input" oninput="pesquisarCardsKanban()" placeholder="🔍 Pesquisar tarefa, cliente, nota ou CPF..." style="width: 100%; padding: 8px 15px; border: 1px solid #ccc; border-radius: 20px; font-size: 12px; outline: none; background: #f9f9f9; transition: all 0.3s;" onfocus="this.style.background='#fff'; this.style.borderColor='var(--primary-color)';" onblur="this.style.background='#f9f9f9'; this.style.borderColor='#ccc';">
+            <div style="display: flex; flex: 1; min-width: 250px; max-width: 450px; margin: 0 15px; align-items: center; gap: 8px; position: relative;">
+                
+                <input type="text" id="kanban_search_input" oninput="pesquisarCardsKanban()" placeholder="🔍 Pesquisar tarefa, cliente, nota ou CPF..." style="flex: 1; padding: 8px 15px; border: 1px solid #ccc; border-radius: 20px; font-size: 12px; outline: none; background: #f9f9f9; transition: all 0.3s;" onfocus="this.style.background='#fff'; this.style.borderColor='var(--primary-color)';" onblur="this.style.background='#f9f9f9'; this.style.borderColor='#ccc';">
+                
+                <button onclick="toggleMenuFiltroCor(event)" title="Filtrar por Situação/Cor" style="width: 36px; height: 36px; min-width: 36px; border-radius: 50%; border: 1px solid #ccc; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#fff'">🎨</button>
+                
+                <div style="width: 1px; height: 24px; background: #ccc; margin: 0 2px;"></div>
+                
+                <button id="btn_undo_kanban" onclick="desfazerAcaoKanban()" title="Desfazer Ação (Ctrl+Z)" style="width: 36px; height: 36px; min-width: 36px; border-radius: 50%; border: 1px solid #ccc; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.1); opacity: 0.5; pointer-events: none;" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#fff'">↩</button>
+                
+                <button id="btn_redo_kanban" onclick="refazerAcaoKanban()" title="Refazer Ação (Ctrl+Y)" style="width: 36px; height: 36px; min-width: 36px; border-radius: 50%; border: 1px solid #ccc; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.1); opacity: 0.5; pointer-events: none;" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#fff'">↪</button>
+
+                <div id="menu_filtro_cor_kanban" class="kanban-menu-cores" style="display: none; position: absolute; right: 0; top: 42px; background: white; border: 1px solid #e0e0e0; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-radius: 6px; padding: 6px; z-index: 100; flex-direction: column; gap: 2px; width: 160px;">
+                    <div onclick="aplicarFiltroCorKanban('TODOS')" style="display: flex; align-items: center; gap: 8px; padding: 6px; cursor: pointer; font-size: 11px; font-weight: bold; color: #333; border-radius: 4px; transition: 0.2s;" onmouseover="this.style.background='#f4f5f7'" onmouseout="this.style.background='transparent'">
+                        🎨 Geral
+                    </div>
+                    <div onclick="aplicarFiltroCorKanban('azul')" style="display: flex; align-items: center; gap: 8px; padding: 6px; cursor: pointer; font-size: 11px; font-weight: bold; color: #333; border-radius: 4px; transition: 0.2s;" onmouseover="this.style.background='#f4f5f7'" onmouseout="this.style.background='transparent'">
+                        <div style="width: 12px; height: 12px; border-radius: 50%; background: #1a73e8;"></div> Em Análise
+                    </div>
+                    <div onclick="aplicarFiltroCorKanban('vermelho')" style="display: flex; align-items: center; gap: 8px; padding: 6px; cursor: pointer; font-size: 11px; font-weight: bold; color: #333; border-radius: 4px; transition: 0.2s;" onmouseover="this.style.background='#f4f5f7'" onmouseout="this.style.background='transparent'">
+                        <div style="width: 12px; height: 12px; border-radius: 50%; background: #d93025;"></div> Prioritário
+                    </div>
+                    <div onclick="aplicarFiltroCorKanban('amarelo')" style="display: flex; align-items: center; gap: 8px; padding: 6px; cursor: pointer; font-size: 11px; font-weight: bold; color: #333; border-radius: 4px; transition: 0.2s;" onmouseover="this.style.background='#f4f5f7'" onmouseout="this.style.background='transparent'">
+                        <div style="width: 12px; height: 12px; border-radius: 50%; background: #f29900;"></div> Pendente Geral
+                    </div>
+                    <div onclick="aplicarFiltroCorKanban('verde')" style="display: flex; align-items: center; gap: 8px; padding: 6px; cursor: pointer; font-size: 11px; font-weight: bold; color: #333; border-radius: 4px; transition: 0.2s;" onmouseover="this.style.background='#f4f5f7'" onmouseout="this.style.background='transparent'">
+                        <div style="width: 12px; height: 12px; border-radius: 50%; background: #137333;"></div> Concluído
+                    </div>
+                </div>
+                
+                <input type="hidden" id="kanban_status_filter" value="TODOS">
             </div>
             
-            <div class="kanban-filter-controls" style="display: flex; gap: 5px;">
+            <div class="kanban-filter-controls" style="display: flex; gap: 5px; flex-wrap: wrap; align-items: center;">
                 <button class="btn-filter-kanban active" id="btn_filter_all" onclick="filtrarVisualizacaoColunas('TODOS', this)">👁️ VER TODAS</button>
                 <button class="btn-filter-kanban" onclick="filtrarVisualizacaoColunas('NOTAS', this)">📌 NOTAS</button>
                 <button class="btn-filter-kanban" onclick="filtrarVisualizacaoColunas('CADASTROS', this)">CADASTROS</button>
@@ -6253,6 +6641,7 @@ function processarGeradorSolicitacaoPlanta() {
         </div>
     </div>
 </div>
+
 
  
 
@@ -8272,6 +8661,145 @@ function processarGeradorSolicitacaoPlanta() {
     </div>
 </div>
 
+<div id="modal_kml_geodesico" class="modal-overlay" style="display: none; z-index: 9999; padding: 0;">
+    <div class="modal-box" style="width: 100vw; height: 100vh; max-width: 100vw; max-height: 100vh; margin: 0; border-radius: 0; display: flex; flex-direction: column; background: #f4f7f9;">
+        
+        <div class="modal-header" style="background: var(--primary-color); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; color: white;">
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <button onclick="fecharVerificadorKML()" style="background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.4); color: white; padding: 6px 15px; border-radius: 4px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">
+                    <span>⬅️</span> VOLTAR AO PAINEL
+                </button>
+                <span style="font-size: 16px; font-weight: bold; text-transform: uppercase;">🗺️ VERIFICADOR DE KML GEODÉSICO RURAL</span>
+            </div>
+        </div>
+
+        <div style="flex: 1; overflow: hidden; padding: 15px; background-color: var(--ui-bg-workspace);">
+            
+            <div id="rs-kml-workspace" class="rs-workspace-container" style="height: 100%; border-radius: 6px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);">
+                
+                <aside id="rs-sidebar" class="rs-panel">
+
+                    <div class="rs-flex-row" style="margin-bottom: 15px;">
+                        <button id="rs-btn-undo" class="rs-btn rs-btn-outline" style="flex:1; justify-content:center; padding:8px;" title="Desfazer (Ctrl+Z)" disabled>↩️ Desfazer</button>
+                        <button id="rs-btn-redo" class="rs-btn rs-btn-outline" style="flex:1; justify-content:center; padding:8px;" title="Refazer (Ctrl+Y)" disabled>↪️ Refazer</button>
+                    </div>
+                    
+                    <div class="rs-action-buttons">
+                        <input type="file" id="rs-file-kml" accept=".kml" class="rs-hidden">
+                        <input type="file" id="rs-file-csv" accept=".csv" class="rs-hidden">
+                        <input type="file" id="rs-file-excel" accept=".xls, .xlsx" class="rs-hidden">
+
+                        <button id="rs-btn-verify" class="rs-btn rs-btn-primary" onclick="document.getElementById('rs-file-kml').click()" style="background-color:#004C27; color: #ffffff;">🗺️ Importar KML</button>
+                        <button id="rs-btn-extract" class="rs-btn rs-btn-outline">📊 Extrair Coordenadas</button>
+                        <button id="rs-btn-excel" class="rs-btn rs-btn-primary" onclick="document.getElementById('rs-file-excel').click()">📊 Importar Excel</button>
+                        <button id="rs-btn-extract-glebas" class="rs-btn rs-btn-outline">🚜 Extrair para TXT</button>
+                        <button id="rs-btn-csv" class="rs-btn rs-btn-primary" onclick="document.getElementById('rs-file-csv').click()">📑 Importar CSV</button>
+                        <button id="rs-btn-clear" class="rs-btn rs-btn-danger">🗑️ Nova Análise (LIMPAR)</button>
+                        <button id="rs-btn-new" class="rs-btn rs-btn-success rs-full-width">➕ Criar / Editar Manualmente</button>
+                    </div>
+
+                    <hr class="rs-divider">
+
+                    <div id="rs-risk-module" class="rs-card-module" style="border-left: 4px solid #D99700;">
+                        <h3 class="rs-subtitle">🚫 Áreas de Risco (Farmcheck)</h3>
+                        
+                        <div class="rs-flex-row" style="margin-bottom: 8px;">
+                            <input type="file" id="rs-file-farmcheck" accept=".kml" class="rs-hidden" multiple>
+                            <button id="rs-btn-import-farmcheck" class="rs-btn rs-btn-outline" style="flex: 1; justify-content: center; text-align: center;" onclick="document.getElementById('rs-file-farmcheck').click()">
+                                📥 IMPORTAR APP / RESERVA
+                            </button>
+                        </div>
+
+                        <div class="rs-flex-row" style="margin-bottom: 10px;">
+                            <input type="file" id="rs-file-car" accept=".kml" class="rs-hidden">
+                            <button id="rs-btn-import-car" class="rs-btn rs-btn-outline" style="flex: 1; justify-content: center; text-align: center; border-left-color: var(--bn-verde-claro);" onclick="document.getElementById('rs-file-car').click()">
+                                🗺️ IMPORTAR CAR OFICIAL
+                            </button>
+                        </div>
+
+                        <div id="rs-risk-list-group" class="rs-checklist-box" style="max-height: 120px; margin-bottom: 10px;">
+                            <div style="font-size:0.8rem; color:#94a3b8; padding:4px; text-align:center;">Nenhuma restrição importada...</div>
+                        </div>
+
+                        <div class="rs-divider" style="margin: 10px 0;"></div>
+
+                        <button id="rs-btn-auto-fix" class="rs-btn rs-btn-primary rs-full-width" style="background-color:#004C27; color: #FFFFFF; justify-content: center;">
+                            ✂️ RECORTAR SOBREPOSIÇÕES 
+                        </button>
+
+                        <button id="rs-btn-auto-fit-car" class="rs-btn rs-btn-primary rs-full-width" style="background-color:#004C27; color: #ffffff; margin-top: 8px; justify-content: center; border: none;">
+                            🎯 ENQUADRAR NO CAR
+                        </button>
+                    </div>
+                    
+                    <hr class="rs-divider">
+
+                    <div id="rs-glebas-container" class="rs-hidden">
+                        <h3 class="rs-subtitle">Glebas do Projeto</h3>
+                        
+                        <div class="rs-input-group">
+                            <label for="rs-new-gleba-name">Criar Nova Gleba:</label>
+                            <div class="rs-flex-row">
+                                <input type="text" id="rs-new-gleba-name" class="rs-input" placeholder="Ex: Curral, Sede...">
+                                <button id="rs-btn-add-gleba" class="rs-btn rs-btn-success" style="padding: 10px 14px;">➕</button>
+                            </div>
+                        </div>
+
+                        <div class="rs-input-group">
+                            <div class="rs-flex-row" style="justify-content: space-between; margin-bottom: 6px;">
+                                <label style="margin: 0;">Glebas Disponíveis:</label>
+                                <div>
+                                    <button id="rs-btn-check-all" class="rs-mini-btn" style="font-size: 0.75rem; color: #2563eb;">Marcar Todas</button>
+                                    <button id="rs-btn-uncheck-all" class="rs-mini-btn" style="font-size: 0.75rem; color: #475569;">Desmarcar Todas</button>
+                                </div>
+                            </div>
+                            <div id="rs-glebas-list-group" class="rs-checklist-box"></div>
+                        </div>
+
+                        <div class="rs-input-group">
+                            <label id="rs-lbl-coords" for="rs-coords-input" style="font-weight: 600; color: #0f172a; display: flex; flex-direction: column; gap: 6px;">
+                                <div>Coordenadas <span id="rs-active-gleba-title" style="color: #ef4444;">[NENHUMA ÁREA SELECIONADA]</span></div>
+                                <button id="rs-btn-activate-edit" class="rs-btn rs-btn-outline" data-active="false" style="font-size: 0.8rem; padding: 6px 12px; background-color: #f1f5f9; justify-content: center; display: none;">🗺️ Ajustar Geometria no Mapa</button>
+                            </label>
+                            <div class="rs-textarea-container">
+                                <textarea id="rs-coords-input" class="rs-textarea" placeholder="-4.1143765309, -46.5736519898, 0..."></textarea>
+                                <div id="rs-coords-overlay" class="rs-textarea-overlay" aria-hidden="true"></div>
+                            </div>
+                        </div>
+
+                        <button id="rs-btn-download-new" class="rs-btn rs-btn-primary rs-full-width" style="background-color:#004C27; color: #ffffff;">📥 Baixar Novo KML</button>
+                    </div>
+                </aside>
+
+                <main id="rs-map-area" class="rs-map-panel">
+                    <div id="rs-map-render"></div>
+                </main>
+
+            </div>
+            </div>
+    </div>
+</div>
+
+<div id="rs-export-modal" class="rs-hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9999; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(2px);">
+        <div style="background: var(--ui-bg-panel); width: 650px; max-width: 95%; border-radius: 6px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); display: flex; flex-direction: column; gap: 15px; border: 1px solid var(--ui-border);">
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--bn-amarelo); padding-bottom: 10px;">
+                <h3 id="rs-export-modal-title" style="margin: 0; color: var(--ui-text-main); font-size: 1.1rem; text-transform: uppercase;">Pré-visualização da Exportação</h3>
+                <button onclick="document.getElementById('rs-export-modal').classList.add('rs-hidden')" style="background: transparent; border: none; font-size: 1.2rem; cursor: pointer; color: var(--ui-text-muted);" title="Fechar">✖</button>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 5px;">
+                <label style="font-size: 0.75rem; font-weight: 600; color: var(--ui-text-main);">Você pode revisar, copiar ou editar o conteúdo abaixo antes de baixar:</label>
+                <textarea id="rs-export-textarea" style="width: 100%; height: 350px; font-family: 'Consolas', monospace; font-size: 0.8rem; padding: 12px; border: 1px solid var(--ui-border); border-radius: 4px; resize: none; background: #F9FAFB; color: var(--ui-text-main); box-sizing: border-box;"></textarea>
+            </div>
+            
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 5px;">
+                <button id="rs-btn-modal-copy" class="rs-btn rs-btn-outline" style="border-left: 3px solid var(--bn-amarelo);">📋 Copiar Tudo</button>
+                <button id="rs-btn-modal-download" class="rs-btn rs-btn-primary" style="background-color: var(--bn-verde-escuro); color: white;">💾 Baixar Arquivo TXT</button>
+            </div>
+        </div>
+    </div>
+
 <script>
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
@@ -9668,13 +10196,20 @@ function calcularMesesOperacao(id) {
         </button>
         
         <div id="box_imo_extra_${id}" style="display: none; margin-top: 15px; border-top: 1px dashed #ccc; padding-top: 15px;">
+            
             <div class="grid">
                 <div class="form-group"><label>Nº do CIB ITR</label><input type="text" id="imo_cib_${id}"></div>
                 <div class="form-group"><label>Nº do SNCR</label><input type="text" id="imo_sncr_${id}"></div>
                 <div class="form-group"><label>Nº do NIRF</label><input type="text" id="imo_nirf_${id}"></div>
-                <div class="form-group"><label>Grau de Posse (%)</label><input type="text" id="imo_grau_posse_${id}"></div>
+                <div class="form-group">
+                    <label>Grau de Posse (%)</label>
+                    <input type="text" id="imo_grau_posse_${id}" oninput="mascaraGrauPosse(this); calcularOutrosProprietarios('${id}', -1)">
+                </div>
                 <div class="form-group"><label>Cartório</label><input type="text" id="imo_cartorio_${id}"></div>
             </div>
+            
+            <div id="container_proprietarios_extra_${id}" style="margin-top: 15px; display: flex; flex-direction: column; gap: 10px;"></div>
+
         </div>
     </div>`;
     
@@ -17529,6 +18064,8 @@ function confirmarSocioAvulso() {
     reconstruirBlocosSocio();
 }
 
+
+
 </script>
 
 <div id="modal_parecer_gerencial" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 10000; justify-content: center; align-items: center; backdrop-filter: blur(3px);">
@@ -17846,46 +18383,93 @@ function renderizarWorkflowKanban() {
 
         // ... (resto da função renderizarWorkflowKanban continua igual acima disso) ...
         
-        let optionsRoteamento = `<option value="" disabled selected>↪</option>`;
+        let optionsRoteamento = `<option value="" disabled selected>⮂</option>`;
         ordemEtapasWorkflow.forEach(et => { optionsRoteamento += `<option value="${et}">${nomesAmigaveisEtapas[et]}</option>`; });
 
         // Fallback de segurança: Se o card é antigo e não tem data, ganha a data de hoje.
         if (!card.dataModificacao) card.dataModificacao = getHojeStr();
 
+        // MÁGICA: Verifica se o card estava aberto para não fechar quando você editar o texto
+        let extraClass = (window.cardAtualFullscreenId === card.id) ? 'fullscreen-mode' : '';
+        let iconeExpandir = (window.cardAtualFullscreenId === card.id) ? '🗕' : '⤢';
+        let dragAtivo = (window.cardAtualFullscreenId === card.id) ? 'false' : 'true';
+
         let cardHTML = `
-        <div class="kanban-card ${corClasse}" id="${card.id}" style="position: relative;" draggable="false" ondragstart="dragCardWorkflow(event, '${card.id}')" ondragend="dragEndWorkflow(event, '${card.id}')">
+        <div class="kanban-card ${corClasse} ${extraClass}" id="${card.id}" style="position: relative; padding-bottom: 25px;" draggable="${dragAtivo}" ondragstart="dragCardWorkflow(event, '${card.id}')" ondragend="dragEndWorkflow(event, '${card.id}')">
             
             <div class="trigger-borda-cor" title="Alterar Situação" onclick="toggleMenuCorCard(event, '${card.id}')" style="position: absolute; left: -5px; top: 0; bottom: 0; width: 12px; cursor: pointer; z-index: 5;"></div>
 
             <div id="menu_cor_${card.id}" class="kanban-menu-cores" style="display: none; position: absolute; left: 10px; top: 25px; background: white; border: 1px solid #e0e0e0; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-radius: 6px; padding: 6px; z-index: 100; flex-direction: column; gap: 2px; width: 140px;">
-                <div onclick="mudarCorStatusCard('${card.id}', 'azul'); toggleMenuCorCard(event, '${card.id}')" style="display: flex; align-items: center; gap: 8px; padding: 6px; cursor: pointer; font-size: 11px; font-weight: bold; color: #333; border-radius: 4px; transition: 0.2s;" onmouseover="this.style.background='#f4f5f7'" onmouseout="this.style.background='transparent'">
-                    <div style="width: 12px; height: 12px; border-radius: 50%; background: #1a73e8;"></div> Em Análise
-                </div>
-                <div onclick="mudarCorStatusCard('${card.id}', 'vermelho'); toggleMenuCorCard(event, '${card.id}')" style="display: flex; align-items: center; gap: 8px; padding: 6px; cursor: pointer; font-size: 11px; font-weight: bold; color: #333; border-radius: 4px; transition: 0.2s;" onmouseover="this.style.background='#f4f5f7'" onmouseout="this.style.background='transparent'">
-                    <div style="width: 12px; height: 12px; border-radius: 50%; background: #d93025;"></div> Prioritário
-                </div>
-                <div onclick="mudarCorStatusCard('${card.id}', 'amarelo'); toggleMenuCorCard(event, '${card.id}')" style="display: flex; align-items: center; gap: 8px; padding: 6px; cursor: pointer; font-size: 11px; font-weight: bold; color: #333; border-radius: 4px; transition: 0.2s;" onmouseover="this.style.background='#f4f5f7'" onmouseout="this.style.background='transparent'">
-                    <div style="width: 12px; height: 12px; border-radius: 50%; background: #f29900;"></div> Pendente Geral
-                </div>
-                <div onclick="mudarCorStatusCard('${card.id}', 'verde'); toggleMenuCorCard(event, '${card.id}')" style="display: flex; align-items: center; gap: 8px; padding: 6px; cursor: pointer; font-size: 11px; font-weight: bold; color: #333; border-radius: 4px; transition: 0.2s;" onmouseover="this.style.background='#f4f5f7'" onmouseout="this.style.background='transparent'">
-                    <div style="width: 12px; height: 12px; border-radius: 50%; background: #137333;"></div> Concluído
-                </div>
+                <div onclick="mudarCorStatusCard('${card.id}', 'azul'); toggleMenuCorCard(event, '${card.id}')" style="display: flex; align-items: center; gap: 8px; padding: 6px; cursor: pointer; font-size: 11px; font-weight: bold; color: #333; border-radius: 4px; transition: 0.2s;" onmouseover="this.style.background='#f4f5f7'" onmouseout="this.style.background='transparent'"><div style="width: 12px; height: 12px; border-radius: 50%; background: #1a73e8;"></div> Em Análise</div>
+                <div onclick="mudarCorStatusCard('${card.id}', 'vermelho'); toggleMenuCorCard(event, '${card.id}')" style="display: flex; align-items: center; gap: 8px; padding: 6px; cursor: pointer; font-size: 11px; font-weight: bold; color: #333; border-radius: 4px; transition: 0.2s;" onmouseover="this.style.background='#f4f5f7'" onmouseout="this.style.background='transparent'"><div style="width: 12px; height: 12px; border-radius: 50%; background: #d93025;"></div> Prioritário</div>
+                <div onclick="mudarCorStatusCard('${card.id}', 'amarelo'); toggleMenuCorCard(event, '${card.id}')" style="display: flex; align-items: center; gap: 8px; padding: 6px; cursor: pointer; font-size: 11px; font-weight: bold; color: #333; border-radius: 4px; transition: 0.2s;" onmouseover="this.style.background='#f4f5f7'" onmouseout="this.style.background='transparent'"><div style="width: 12px; height: 12px; border-radius: 50%; background: #f29900;"></div> Pendente Geral</div>
+                <div onclick="mudarCorStatusCard('${card.id}', 'verde'); toggleMenuCorCard(event, '${card.id}')" style="display: flex; align-items: center; gap: 8px; padding: 6px; cursor: pointer; font-size: 11px; font-weight: bold; color: #333; border-radius: 4px; transition: 0.2s;" onmouseover="this.style.background='#f4f5f7'" onmouseout="this.style.background='transparent'"><div style="width: 12px; height: 12px; border-radius: 50%; background: #137333;"></div> Concluído</div>
             </div>
 
             <div class="card-drag-handle" onmousedown="ativarDragCard('${card.id}')" onmouseup="desativarDragCard('${card.id}')" onmouseleave="desativarDragCard('${card.id}')">
                 
-                <div style="display:flex; gap:8px; align-items:center;">
-                    <select class="select-route-fast" onmousedown="event.stopPropagation()" onchange="rotearCardViaMenu('${card.id}', this.value)">${optionsRoteamento}</select>
+                <div style="display:flex; justify-content: space-between; width: 100%;">
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <select class="select-route-fast" onmousedown="event.stopPropagation()" onchange="rotearCardViaMenu('${card.id}', this.value)">${optionsRoteamento}</select>
+                    </div>
+                    <div style="display:flex; gap:2px; align-items:center;">
+                        <button class="btn-lembrete-icon" onmousedown="event.stopPropagation()" onclick="abrirModalLembrete('${card.id}')" title="Agendar Lembrete">⏰</button>
+                        <input type="date" class="card-date-input" value="${card.dataModificacao}" onmousedown="event.stopPropagation()" onchange="atualizarDataManual('${card.id}', this.value)" title="Data da Última Modificação">
+                        
+                        <button class="card-delete-btn hide-on-fullscreen" onmousedown="event.stopPropagation()" onclick="excluirCardWorkflow('${card.id}')" title="Excluir Card">X</button>
+                        <button class="show-on-fullscreen" onmousedown="event.stopPropagation()" onclick="toggleFullscreenCard('${card.id}')" style="background: transparent; border: none; font-size: 26px; font-weight: bold; color: #555; cursor: pointer; padding: 0 5px; line-height: 1;" title="Minimizar Tarefa">−</button>
+                    </div>
                 </div>
-                
-                <div style="display:flex; gap:2px; align-items:center;">
-                    <button class="btn-lembrete-icon" onmousedown="event.stopPropagation()" onclick="abrirModalLembrete('${card.id}')" title="Agendar Lembrete">⏰</button>
-                    <input type="date" class="card-date-input" value="${card.dataModificacao}" onmousedown="event.stopPropagation()" onchange="atualizarDataManual('${card.id}', this.value)" title="Data da Última Modificação">
-                    <button class="card-delete-btn" onmousedown="event.stopPropagation()" onclick="excluirCardWorkflow('${card.id}')" title="Excluir Card">X</button>
+
+                <div class="show-on-fullscreen notas-toolbar" style="margin-top: 10px; border-top: 1px solid #eee; padding-top: 10px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; border-radius: 0; box-shadow: none; border-left: none; border-right: none; border-bottom: none; background: transparent;" onmousedown="event.stopPropagation()">
+                    
+                    <div style="display: flex; align-items: center; gap: 2px;">
+                        <button onmousedown="event.preventDefault(); document.execCommand('bold', false, null)" title="Negrito"><b>B</b></button>
+                        <button onmousedown="event.preventDefault(); document.execCommand('italic', false, null)" title="Itálico"><i>I</i></button>
+                        <button onmousedown="event.preventDefault(); document.execCommand('underline', false, null)" title="Sublinhado"><u>U</u></button>
+                        <button onmousedown="event.preventDefault(); document.execCommand('strikeThrough', false, null)" title="Tachado"><s>S</s></button>
+                        
+                        <div class="toolbar-divisor"></div>
+                        
+                        <div class="color-dropdown">
+                            <button title="Grifar Texto">🖍️ ▼</button>
+                            <div class="color-dropdown-content">
+                                <button class="color-swatch" style="background-color: #fff3cd;" onmousedown="event.preventDefault(); document.execCommand('hiliteColor', false, '#fff3cd')"></button>
+                                <button class="color-swatch" style="background-color: #f8d7da;" onmousedown="event.preventDefault(); document.execCommand('hiliteColor', false, '#f8d7da')"></button>
+                                <button class="color-swatch" style="background-color: #e2e3e5;" onmousedown="event.preventDefault(); document.execCommand('hiliteColor', false, '#e2e3e5')"></button>
+                            </div>
+                        </div>
+                        
+                        <button onmousedown="event.preventDefault(); document.execCommand('foreColor', false, '#800000')" title="Texto em Destaque">🅰️</button>
+                        <button onmousedown="event.preventDefault(); document.execCommand('removeFormat', false, null)" title="Remover Formatações">✖️</button> 
+                        
+                        <div class="toolbar-divisor"></div>
+                        
+                        <div class="list-dropdown">
+                            <button title="Listas">≣ ▼</button>
+                            <div class="list-dropdown-content">
+                                <button onmousedown="event.preventDefault(); document.execCommand('insertUnorderedList', false, null)">• Marcadores</button>
+                                <button onmousedown="event.preventDefault(); document.execCommand('insertOrderedList', false, null)">1. Numeração</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; flex:1; justify-content: flex-end; align-items: center; gap: 5px; min-width: 180px;">
+                        <input type="text" id="busca_interna_${card.id}" placeholder="Pesquisar no texto..." 
+                               oninput="pesquisarTextoInterno(this.value, '${card.id}')" 
+                               onmousedown="event.stopPropagation()"
+                               style="padding: 6px 12px; border: 1px solid #ccc; border-radius: 20px; font-size: 11px; width: 100%; outline: none; background: #fff;">
+                        <button onclick="pesquisarTextoInterno(document.getElementById('busca_interna_${card.id}').value, '${card.id}')" 
+                                onmousedown="event.stopPropagation()"
+                                style="background:#f0f0f0; border:1px solid #ccc; border-radius: 50%; min-width: 28px; height: 28px; cursor:pointer; font-size: 12px; display:flex; align-items:center; justify-content:center;" 
+                                title="Buscar Palavra">🔍</button>
+                    </div>
                 </div>
             </div>
             
             <div class="card-editor" contenteditable="true" style="${estiloEditorRico}" oninput="atualizarTextoLocal('${card.id}', this.innerHTML, this.innerText)" onblur="salvarTextoFirebase('${card.id}', this.innerHTML, this.innerText)">${card.texto}</div>
+            
+            <button onclick="toggleFullscreenCard('${card.id}')" class="btn-expandir-card" title="Expandir/Minimizar Tarefa">${iconeExpandir}</button>
             
         </div>`;
         
@@ -17982,62 +18566,59 @@ function toggleMinimizarNotas() {
 }
 
 // === FILTROS DE VISUALIZAÇÃO INTELIGENTES (Com memória de navegação) ===
+// === FILTROS DE VISUALIZAÇÃO INTELIGENTES ===
 function filtrarVisualizacaoColunas(filtro, btnElement = null) {
     window.filtroAtualKanban = filtro; // Guarda o estado atual da aba
     
-    // Tratamento de botões (Muda a cor do ativo)
+    // Tratamento estético dos botões (Muda a cor do ativo)
     if (btnElement) {
         document.querySelectorAll('.btn-filter-kanban').forEach(btn => btn.classList.remove('active'));
         btnElement.classList.add('active');
     }
 
-    // Se houver uma pesquisa em andamento e o usuário clicar num filtro, a pesquisa é limpa
-    let searchInput = document.getElementById('kanban_search_input');
-    if (searchInput && searchInput.value.trim() !== "" && event && event.type === "click") {
-        searchInput.value = "";
-        document.querySelectorAll('.kanban-card').forEach(c => c.style.display = 'flex');
-    }
-
-    let colunas = document.querySelectorAll('.kanban-coluna-workflow');
-    let separador = document.getElementById('separador_notas');
-
-    colunas.forEach(col => {
-        if (filtro === 'TODOS') { 
-            col.style.display = 'flex'; 
-            col.classList.remove('focus-single'); 
-            if (separador) separador.style.display = 'block';
-        } else {
-            if (col.dataset.etapa === filtro) { 
-                col.style.display = 'flex'; 
-                col.classList.add('focus-single'); 
-                if (filtro === 'NOTAS') col.classList.remove('is-minimized'); // Abre Notas automaticamente
-            } else { 
-                col.style.display = 'none'; 
-                col.classList.remove('focus-single'); 
-            }
-            if (separador) separador.style.display = 'none';
-        }
-    });
+    // Agora ele simplesmente dispara o Filtro Mestre Cruzado para processar a mudança
+    pesquisarCardsKanban();
 }
 
-// === O MOTOR DA PESQUISA EM TEMPO REAL ===
+// === O MOTOR MESTRE DE PESQUISA (TEXTO + COR + COLUNA) ===
 function pesquisarCardsKanban() {
     let input = document.getElementById('kanban_search_input');
-    if (!input) return;
+    let selectStatus = document.getElementById('kanban_status_filter');
     
-    let termo = input.value.toLowerCase().trim();
+    let termo = input ? input.value.toLowerCase().trim() : "";
+    let statusFiltrado = selectStatus ? selectStatus.value : "TODOS";
+    let filtroEtapa = window.filtroAtualKanban || 'TODOS';
+
     let colunas = document.querySelectorAll('.kanban-coluna-workflow');
     let separador = document.getElementById('separador_notas');
-    
-    // 1. Se a barra for esvaziada (usuário apagou o texto), restaura o painel como estava
-    if (termo === "") {
+
+    // 1. MODO NORMAL (Sem pesquisa de texto nem filtro de cor ativado)
+    // Devolve o comportamento original de navegar apenas pelas colunas
+    if (termo === "" && statusFiltrado === "TODOS") {
         document.querySelectorAll('.kanban-card').forEach(c => c.style.display = 'flex');
-        let filtroAtual = window.filtroAtualKanban || 'TODOS';
-        filtrarVisualizacaoColunas(filtroAtual);
+        
+        colunas.forEach(col => {
+            if (filtroEtapa === 'TODOS') {
+                col.style.display = 'flex';
+                col.classList.remove('focus-single');
+            } else {
+                if (col.dataset.etapa === filtroEtapa) {
+                    col.style.display = 'flex';
+                    col.classList.add('focus-single');
+                    if (filtroEtapa === 'NOTAS') col.classList.remove('is-minimized');
+                } else {
+                    col.style.display = 'none';
+                    col.classList.remove('focus-single');
+                }
+            }
+        });
+        
+        if (separador) separador.style.display = (filtroEtapa === 'TODOS') ? 'block' : 'none';
         return;
     }
 
-    // 2. Esconde TODAS as colunas e o separador por padrão
+    // 2. MODO FILTRO CRUZADO (Texto e/ou Cor acionados)
+    // Esconde tudo por padrão e deixa as regras revelarem o que interessa
     colunas.forEach(col => {
         col.style.display = 'none';
         col.classList.remove('focus-single');
@@ -18045,23 +18626,35 @@ function pesquisarCardsKanban() {
     });
     if (separador) separador.style.display = 'none';
 
-    // 3. Varre os cards cruzando a pesquisa
     let cards = document.querySelectorAll('.kanban-card');
     cards.forEach(card => {
-        // Pega todo o texto escrito dentro da nota do card
+        // Validação 1: Texto
         let editor = card.querySelector('.card-editor');
-        if (editor && editor.innerText.toLowerCase().includes(termo)) {
-            card.style.display = 'flex'; // Mostra a tarefa
-            
-            // MÁGICA: Se a tarefa apareceu, a coluna "mãe" dela NASCE na tela novamente!
-            let colunaPai = card.closest('.kanban-coluna-workflow');
-            if (colunaPai) colunaPai.style.display = 'flex';
+        let textoMatch = editor && editor.innerText.toLowerCase().includes(termo);
+        
+        // Validação 2: Cor (Situação)
+        let statusMatch = true;
+        if (statusFiltrado !== "TODOS") {
+            statusMatch = card.classList.contains('status-' + statusFiltrado);
+        }
+
+        // Validação 3: Coluna Atual
+        let colunaPai = card.closest('.kanban-coluna-workflow');
+        let etapaMatch = true;
+        if (filtroEtapa !== 'TODOS' && colunaPai && colunaPai.dataset.etapa !== filtroEtapa) {
+            etapaMatch = false;
+        }
+
+        // SÓ mostra a tarefa se ela passar nos 3 testes: Texto + Cor + Coluna atual
+        if (textoMatch && statusMatch && etapaMatch) {
+            card.style.display = 'flex';
+            if (colunaPai) colunaPai.style.display = 'flex'; // Revive a coluna mãe dela
         } else {
-            card.style.display = 'none'; // Esconde a tarefa
+            card.style.display = 'none';
         }
     });
 
-    // 4. Detalhe estético: A Divisória Sutil só aparece se a aba NOTAS e mais alguma estiverem na tela juntas
+    // Detalhe estético: A Divisória Sutil
     let notasVisivel = document.getElementById('coluna_notas')?.style.display === 'flex';
     let outrasVisiveis = Array.from(colunas).some(c => c.id !== 'coluna_notas' && c.style.display === 'flex');
     if (separador && notasVisivel && outrasVisiveis) {
@@ -18183,12 +18776,25 @@ function atualizarContadoresWorkflow() {
 }
 
 // Adaptado para ler/salvar no mesmo lugar que o seu anterior (Migração Transparente)
-function salvarKanbanNoFirebase() { localStorage.setItem('kanban_backup_local', JSON.stringify(dadosWorkflowKanban)); }
+// =========================================================================
+// SALVAMENTO E CARREGAMENTO (COM GATILHO DE HISTÓRICO)
+// =========================================================================
+
+// A MÁGICA: Agora ela aceita um comando para salvar sem "poluir" o histórico quando estamos voltando no tempo.
+function salvarKanbanNoFirebase(pularHistorico = false) { 
+    localStorage.setItem('kanban_backup_local', JSON.stringify(dadosWorkflowKanban));
+    
+    // Se não estivermos num processo de Desfazer/Refazer, salva o momento na máquina do tempo!
+    if (!pularHistorico) {
+        registrarEstadoHistorico();
+    }
+}
+
 function carregarKanbanDoFirebase() {
     let salvo = localStorage.getItem('kanban_backup_local');
     if (salvo) {
         let dados = JSON.parse(salvo);
-        // Mecanismo de Migração: Se for o formato antigo (fazer, andamento, concluido), converte para o novo.
+        // Migração do formato antigo para o novo
         if (!Array.isArray(dados) && dados.fazer) {
             dadosWorkflowKanban = [];
             dados.fazer.forEach(txt => dadosWorkflowKanban.push({id: 'wk_'+Date.now()+Math.random(), etapa: 'CADASTROS', statusCor: 'amarelo', texto: txt}));
@@ -18197,8 +18803,11 @@ function carregarKanbanDoFirebase() {
         } else {
             dadosWorkflowKanban = Array.isArray(dados) ? dados : [];
         }
-        renderizarWorkflowKanban();
     }
+    renderizarWorkflowKanban();
+    
+    // INÍCIO DO HISTÓRICO: Assim que o painel abre, tira a primeira "foto" do quadro
+    if (historicoKanban.length === 0) registrarEstadoHistorico();
 }
 
 function abrirModuloKanban() {
@@ -18535,6 +19144,1892 @@ document.addEventListener('click', function(e) {
         document.querySelectorAll('.kanban-menu-cores').forEach(m => m.style.display = 'none');
     }
 });
+
+// =========================================================================
+// MENU FLUTUANTE DO FILTRO DE CORES (Mestre)
+// =========================================================================
+
+function toggleMenuFiltroCor(ev) {
+    ev.stopPropagation(); // Evita que o clique feche o menu imediatamente
+    
+    // Esconde outros menus de cores que estejam abertos (ex: os dos cards)
+    document.querySelectorAll('.kanban-menu-cores').forEach(m => {
+        if(m.id !== 'menu_filtro_cor_kanban') m.style.display = 'none';
+    });
+
+    let menu = document.getElementById('menu_filtro_cor_kanban');
+    if (menu) {
+        menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex';
+    }
+}
+
+function aplicarFiltroCorKanban(corSelecionada) {
+    // 1. Guarda a cor escolhida no input invisível
+    document.getElementById('kanban_status_filter').value = corSelecionada;
+    
+    // 2. Fecha o menu flutuante
+    document.getElementById('menu_filtro_cor_kanban').style.display = 'none';
+    
+    // 3. Aciona o motor mestre que já programamos antes!
+    pesquisarCardsKanban();
+}
+
+// =========================================================================
+// MODO FOCO E MOTOR DE BUSCA INTERNA
+// =========================================================================
+
+function toggleFullscreenCard(cardId) {
+    let cardEl = document.getElementById(cardId);
+    if(!cardEl) return;
+    
+    let overlay = document.getElementById('kanban_fullscreen_overlay');
+    if(!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'kanban_fullscreen_overlay';
+        
+        // MÁGICA: Injeta o overlay DENTRO do modal para respeitar as regras de camadas
+        document.getElementById('modal_kanban_tarefas').appendChild(overlay);
+        
+        // A LINHA DO ONCLICK FOI REMOVIDA DAQUI! Agora o fundo é apenas um escudo "cego".
+    }
+
+    if (window.cardAtualFullscreenId === cardId) {
+        // --- SAIR DO MODO FOCO ---
+        window.cardAtualFullscreenId = null;
+        cardEl.classList.remove('fullscreen-mode');
+        overlay.style.display = 'none';
+        cardEl.setAttribute('draggable', 'true');
+        
+        limparBuscaInterna(cardId); // Limpa pesquisas ativas ao fechar
+        
+        // Retorna a edição a todas as caixas de texto normais
+        document.querySelectorAll('.card-editor').forEach(editor => {
+            editor.setAttribute('contenteditable', 'true');
+        });
+
+    } else {
+        // --- ENTRAR NO MODO FOCO ---
+        if(window.cardAtualFullscreenId) toggleFullscreenCard(window.cardAtualFullscreenId);
+        
+        window.cardAtualFullscreenId = cardId;
+        cardEl.classList.add('fullscreen-mode');
+        overlay.style.display = 'block'; // Ativa a barreira invisível anti-clique
+        cardEl.setAttribute('draggable', 'false');
+        
+        // Trava a edição do painel traseiro e protege contra salvamento de marca-texto
+        document.querySelectorAll('.card-editor').forEach(editor => {
+            if (editor.closest(`#${cardId}`)) {
+                editor.setAttribute('contenteditable', 'true');
+                // Limpa a busca se o usuário clicar no texto para editá-lo
+                editor.addEventListener('focus', () => limparBuscaInterna(cardId), {once: false});
+            } else {
+                editor.setAttribute('contenteditable', 'false');
+            }
+        });
+        
+        setTimeout(() => cardEl.querySelector('.card-editor')?.focus(), 100);
+    }
+}
+
+// =========================================================================
+// MODO FOCO E MOTOR DE BUSCA INTERNA (CORREÇÃO DO MATH.RANDOM)
+// =========================================================================
+
+// Função auxiliar para limpar a busca ao fechar o card
+function limparBuscaInterna(cardId) {
+    // USANDO GETELEMENTBYID PARA EVITAR O BUG DO PONTO NO ID
+    let inputBusca = document.getElementById('busca_interna_' + cardId);
+    let cardEl = document.getElementById(cardId);
+    
+    if (inputBusca) {
+        inputBusca.value = "";
+        inputBusca.style.borderColor = '#ccc';
+    }
+    
+    if (cardEl) {
+        let editor = cardEl.querySelector('.card-editor');
+        if (editor) {
+            let marks = editor.querySelectorAll('mark.kanban-busca-temp');
+            marks.forEach(mark => {
+                let parent = mark.parentNode;
+                while(mark.firstChild) parent.insertBefore(mark.firstChild, mark);
+                parent.removeChild(mark);
+            });
+            editor.normalize(); // Costura o texto de volta ao normal
+        }
+    }
+}
+
+// MOTOR DE BUSCA CIRÚRGICO
+function pesquisarTextoInterno(termo, cardId) {
+    let cardEl = document.getElementById(cardId);
+    if(!cardEl) return;
+    
+    let editor = cardEl.querySelector('.card-editor');
+    // USANDO GETELEMENTBYID AQUI TAMBÉM!
+    let inputBusca = document.getElementById('busca_interna_' + cardId); 
+    
+    if (!editor) return;
+
+    let termoLimpo = termo.toLowerCase().trim();
+
+    // 1. Limpa grifos anteriores da tela
+    let marks = editor.querySelectorAll('mark.kanban-busca-temp');
+    marks.forEach(mark => {
+        let parent = mark.parentNode;
+        while(mark.firstChild) parent.insertBefore(mark.firstChild, mark);
+        parent.removeChild(mark);
+    });
+    editor.normalize(); 
+
+    // Se o usuário apagou a pesquisa, encerra aqui.
+    if (termoLimpo === "") {
+        if(inputBusca) inputBusca.style.borderColor = '#ccc';
+        return;
+    }
+
+    // 2. Verifica existência no texto puro
+    if (!editor.innerText.toLowerCase().includes(termoLimpo)) {
+        if(inputBusca) inputBusca.style.borderColor = '#d93025'; // Borda Vermelha (Não achou)
+        return;
+    }
+
+    // 3. Destaca o termo
+    try {
+        let textoOriginalHTML = editor.innerHTML; 
+        
+        let termoEscapado = termoLimpo.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+        // A Regex ignora marcações HTML (<...>) para não quebrar seus negritos e listas
+        let regex = new RegExp(`(${termoEscapado})(?![^<]*>)`, "gi");
+        
+        // Aplica o fundo amarelo com CSS inline garantido
+        let textoModificado = textoOriginalHTML.replace(regex, 
+            `<mark class="kanban-busca-temp" style="background-color: #ffeb3b; color: #000; border-radius: 2px; box-shadow: 0 0 4px #fbc02d; padding: 0 2px;">$1</mark>`);
+
+        editor.innerHTML = textoModificado;
+        
+        if(inputBusca) inputBusca.style.borderColor = 'var(--primary-color)'; // Borda Verde (Achou!)
+    } catch (err) {
+        console.error("Erro na busca:", err);
+    }
+}
+
+// =========================================================================
+// MOTOR GLOBAL DE HISTÓRICO (DESFAZER / REFAZER)
+// =========================================================================
+let historicoKanban = [];
+let ponteiroHistorico = -1;
+
+// 1. Tira uma foto (Snapshot) de como as tarefas estão agora
+function registrarEstadoHistorico() {
+    // Se voltamos no tempo e fizermos uma ação nova, apaga o "futuro" alternativo
+    if (ponteiroHistorico < historicoKanban.length - 1) {
+        historicoKanban = historicoKanban.slice(0, ponteiroHistorico + 1);
+    }
+    
+    let estadoAtual = JSON.stringify(dadosWorkflowKanban);
+    
+    // Evita salvar duas fotos idênticas seguidas
+    if (ponteiroHistorico === -1 || historicoKanban[ponteiroHistorico] !== estadoAtual) {
+        historicoKanban.push(estadoAtual);
+        // MÁGICA: Limita a 50 ações para não pesar a memória do navegador
+        if (historicoKanban.length > 50) historicoKanban.shift(); 
+        ponteiroHistorico = historicoKanban.length - 1;
+    }
+    atualizarBotoesDesfazerRefazer();
+}
+
+// 2. Acende ou Apaga os botões na tela
+function atualizarBotoesDesfazerRefazer() {
+    let btnUndo = document.getElementById('btn_undo_kanban');
+    let btnRedo = document.getElementById('btn_redo_kanban');
+    
+    if (btnUndo) {
+        btnUndo.style.opacity = (ponteiroHistorico > 0) ? '1' : '0.5';
+        btnUndo.style.pointerEvents = (ponteiroHistorico > 0) ? 'auto' : 'none';
+    }
+    if (btnRedo) {
+        btnRedo.style.opacity = (ponteiroHistorico < historicoKanban.length - 1) ? '1' : '0.5';
+        btnRedo.style.pointerEvents = (ponteiroHistorico < historicoKanban.length - 1) ? 'auto' : 'none';
+    }
+}
+
+// 3. O Botão ↩️
+function desfazerAcaoKanban() {
+    if (ponteiroHistorico > 0) {
+        ponteiroHistorico--; // Volta 1 passo
+        dadosWorkflowKanban = JSON.parse(historicoKanban[ponteiroHistorico]); // Restaura os dados
+        salvarKanbanNoFirebase(true); // Salva no banco (true = sem criar nova foto)
+        renderizarWorkflowKanban(); // Redesenha a tela
+        atualizarBotoesDesfazerRefazer();
+    }
+}
+
+// 4. O Botão ↪️
+function refazerAcaoKanban() {
+    if (ponteiroHistorico < historicoKanban.length - 1) {
+        ponteiroHistorico++; // Avança 1 passo
+        dadosWorkflowKanban = JSON.parse(historicoKanban[ponteiroHistorico]);
+        salvarKanbanNoFirebase(true);
+        renderizarWorkflowKanban();
+        atualizarBotoesDesfazerRefazer();
+    }
+}
+
+// =========================================================================
+// ATALHOS DE TECLADO INTELIGENTES (CTRL + Z e CTRL + Y)
+// =========================================================================
+document.addEventListener('keydown', function(e) {
+    let modal = document.getElementById('modal_kanban_tarefas');
+    // Se o Kanban não estiver aberto, ignora tudo.
+    if (!modal || modal.style.display === 'none') return;
+    
+    // TRAVA DE SEGURANÇA: Se o usuário estiver focando no editor escrevendo uma frase, 
+    // ele usará o "Ctrl+Z" nativo do navegador para desfazer as letrinhas, e não o quadro inteiro!
+    let foco = document.activeElement;
+    if (foco && (foco.tagName === 'INPUT' || foco.isContentEditable)) return;
+
+    // Se estiver fora das caixas de texto e pressionar Ctrl + Z (Desfazer)
+    if (e.ctrlKey && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        desfazerAcaoKanban();
+    }
+    
+    // Se pressionar Ctrl + Y ou Ctrl + Shift + Z (Refazer)
+    if (e.ctrlKey && (e.key.toLowerCase() === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey))) {
+        e.preventDefault();
+        refazerAcaoKanban();
+    }
+});
+
+// =========================================================================
+// MÓDULO INTELIGENTE DE DISTRIBUIÇÃO DE POSSE (IMÓVEIS)
+// =========================================================================
+
+// Trava para aceitar apenas números e formatar a vírgula perfeitamente
+function mascaraGrauPosse(input) {
+    let v = input.value.replace(/[^0-9,.]/g, ''); 
+    v = v.replace(/\./g, ','); 
+    let partes = v.split(',');
+    if (partes.length > 2) v = partes[0] + ',' + partes.slice(1).join('');
+    input.value = v;
+}
+
+function parseGrau(valorStr) {
+    if (!valorStr) return 0;
+    return parseFloat(valorStr.replace(',', '.')) || 0;
+}
+
+// O MOTOR MESTRE DE CASCATA
+function calcularOutrosProprietarios(idImovel, indiceEditado = -1) {
+    let inputPrincipal = document.getElementById(`imo_grau_posse_${idImovel}`);
+    let containerExtra = document.getElementById(`container_proprietarios_extra_${idImovel}`);
+    if (!inputPrincipal || !containerExtra) return;
+
+    let possePrincipal = parseGrau(inputPrincipal.value);
+
+    // Se a caixa principal for esvaziada, limpa tudo sem deixar vestígios
+    if (inputPrincipal.value.trim() === "") {
+        containerExtra.innerHTML = "";
+        return;
+    }
+
+    // Leitura do estado civil para preencher a primeira caixa extra (Cônjuge)
+    let estadoCivilTitular = document.getElementById('est_civil_titular')?.value || "";
+    let isComunhao = (estadoCivilTitular.toUpperCase().includes("COMUNHÃO PARCIAL") || estadoCivilTitular.toUpperCase().includes("COMUNHÃO UNIVERSAL"));
+    let conjugeNome = isComunhao ? (document.getElementById('nome_conj_titular')?.value || "") : "";
+    let conjugeCPF = isComunhao ? (document.getElementById('cpf_conj_titular')?.value || "") : "";
+
+    // 1. Mapeia a tela atual para não perder dados que o usuário já preencheu
+    let linhasAtuais = containerExtra.querySelectorAll('.linha-prop-extra');
+    let listaProprietarios = [];
+    linhasAtuais.forEach((linha, index) => {
+        listaProprietarios.push({
+            nome: document.getElementById(`prop_nome_${idImovel}_${index}`).value,
+            cpf: document.getElementById(`prop_cpf_${idImovel}_${index}`).value,
+            posse: document.getElementById(`prop_posse_${idImovel}_${index}`).value,
+        });
+    });
+
+    // 2. Calcula a soma GARANTIDA apenas até a caixa que o utilizador está a ditar
+    let somaAteEditado = possePrincipal;
+    for (let i = 0; i <= indiceEditado; i++) {
+        if (i < listaProprietarios.length) {
+            somaAteEditado += parseGrau(listaProprietarios[i].posse);
+        }
+    }
+
+    // 3. Monta o novo esqueleto
+    let novaLista = [];
+    for (let i = 0; i <= indiceEditado; i++) {
+        if (i < listaProprietarios.length) novaLista.push(listaProprietarios[i]);
+    }
+
+    let restante = 100 - somaAteEditado;
+    restante = parseFloat(restante.toFixed(2));
+
+    // 4. Se faltar para 100%, empurra a diferença para a próxima caixa!
+    if (restante > 0) {
+        let proximoIndex = indiceEditado + 1;
+        if (proximoIndex < listaProprietarios.length) {
+            // A caixa já existia: Preserva o nome/cpf, ajusta apenas o número
+            novaLista.push({
+                nome: listaProprietarios[proximoIndex].nome,
+                cpf: listaProprietarios[proximoIndex].cpf,
+                posse: restante.toString().replace('.', ',')
+            });
+        } else {
+            // A caixa é nova: Se for a 1ª (index 0), chama o cônjuge. Senão, fica vazia.
+            novaLista.push({
+                nome: (proximoIndex === 0) ? conjugeNome : "",
+                cpf: (proximoIndex === 0) ? conjugeCPF : "",
+                posse: restante.toString().replace('.', ',')
+            });
+        }
+    }
+
+    // 5. ATUALIZAÇÃO CIRÚRGICA DA TELA (DOM Diffing) - Não pisca e não rouba o cursor!
+    novaLista.forEach((prop, index) => {
+        if (index < linhasAtuais.length) {
+            // Atualiza a linha que já está visível
+            let inNome = document.getElementById(`prop_nome_${idImovel}_${index}`);
+            let inCpf = document.getElementById(`prop_cpf_${idImovel}_${index}`);
+            let inPosse = document.getElementById(`prop_posse_${idImovel}_${index}`);
+            
+            if (inNome && inNome.value !== prop.nome) inNome.value = prop.nome;
+            if (inCpf && inCpf.value !== prop.cpf) inCpf.value = prop.cpf;
+            
+            // Só muda a posse se o número for diferente E o usuário não estiver com o cursor piscando nela
+            if (inPosse && inPosse.value !== prop.posse && document.activeElement !== inPosse) {
+                inPosse.value = prop.posse;
+            }
+        } else {
+            // Renderiza a linha nova
+            let novaLinhaHTML = `
+            <div class="linha-prop-extra grid" id="linha_prop_${idImovel}_${index}" style="background: #fdfdfd; padding: 10px; border: 1px solid #eee; border-radius: 4px; border-left: 3px solid var(--accent-color);">
+                <div class="form-group" style="flex: 2;">
+                    <label style="color: var(--accent-color);">Nome (Proprietário ${index + 2})</label>
+                    <input type="text" id="prop_nome_${idImovel}_${index}" value="${prop.nome}">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label style="color: var(--accent-color);">CPF</label>
+                    <input type="text" id="prop_cpf_${idImovel}_${index}" value="${prop.cpf}" oninput="if(typeof mascaraCPF === 'function') mascaraCPF(this)" maxlength="14">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label style="color: var(--accent-color);">Grau de Posse (%)</label>
+                    <input type="text" id="prop_posse_${idImovel}_${index}" value="${prop.posse}" oninput="mascaraGrauPosse(this); calcularOutrosProprietarios('${idImovel}', ${index})">
+                </div>
+            </div>`;
+            containerExtra.insertAdjacentHTML('beforeend', novaLinhaHTML);
+        }
+    });
+
+    // 6. FAXINA: Apaga as caixas que sobraram (Ex: se bateu 100%, apaga as desnecessárias)
+    for (let i = novaLista.length; i < linhasAtuais.length; i++) {
+        linhasAtuais[i].remove();
+    }
+
+    // 7. Alerta de erro matemático caso o usuário exceda os 100% nas caixas de cima
+    let divAviso = document.getElementById(`aviso_posse_${idImovel}`);
+    if (restante < 0) {
+        if (!divAviso) {
+            containerExtra.insertAdjacentHTML('beforeend', `<div id="aviso_posse_${idImovel}" style="color: #d93025; font-size: 11px; font-weight: bold; margin-top: 5px;">⚠️ A SOMA DAS POSSES ULTRAPASSOU 100%! Por favor, corrija os valores.</div>`);
+        }
+    } else {
+        if (divAviso) divAviso.remove();
+    }
+}
+
+// Função para abrir o painel KML e recalcular o mapa
+function abrirVerificadorKML() {
+    document.getElementById('modal_kml_geodesico').style.display = 'flex';
+    
+    // Pulo do gato: Força o mapa a se redimensionar logo após a div se tornar visível.
+    // Sem isso, o Leaflet tentaria carregar em uma área de tamanho 0x0.
+    if (typeof rsMap !== 'undefined' && rsMap != null) {
+        setTimeout(() => {
+            rsMap.invalidateSize();
+        }, 300);
+    }
+}
+
+// Função para fechar e limpar a memória
+function fecharVerificadorKML() {
+    // 1. Esconde o modal
+    document.getElementById('modal_kml_geodesico').style.display = 'none';
+    
+    // 2. Limpeza cirúrgica do mapa
+    if (typeof rsMap !== 'undefined' && rsMap !== null) {
+        // Remove cada camada do mapa para liberar a memória RAM
+        rsMap.eachLayer((layer) => {
+            // Não removemos o TileLayer (o mapa de fundo da Esri) 
+            // apenas as camadas de desenho do usuário (Glebas, CAR, Riscos)
+            if (!(layer instanceof L.TileLayer)) {
+                rsMap.removeLayer(layer);
+            }
+        });
+        
+        // Reseta o histórico se você quiser que a análise comece do zero ao reabrir
+        // Se preferir manter o que o usuário fez, comente a linha abaixo:
+        // rsGlebasData = {}; rsSaveState(); 
+        
+        console.log("Mapa limpo e recursos liberados.");
+    }
+}
+
+</script>
+
+<script>
+
+// =========================================================================
+// MOTOR DO VERIFICADOR KML - INTEGRAÇÃO PRINCIPAL
+// =========================================================================
+
+// Esta constante é a "âncora" da ferramenta. 
+// Garante que não haja conflitos de nomes de variáveis globais.
+const KML_TOOL = {
+    init: function() {
+        // Inicializa o que for necessário ao carregar a página
+        rsInitializeMap(); 
+        console.log("Verificador KML inicializado.");
+    }
+};
+
+
+
+// =========================================================================
+        // LÓGICA E MOTOR DO SISTEMA (JAVASCRIPT) - VERSÃO DINÂMICA
+        // =========================================================================
+
+        let rsMap;
+        let rsLayersGroup = {}; // Guarda as camadas dos polígonos por ID/Nome da gleba
+        let rsGlebasColors = {}; // Guarda as cores customizadas de cada gleba
+        let rsActiveGlebaEdit = null; // Controla qual gleba está ativa no Textarea
+        let rsFixedKmlBlob = null;
+        
+        let rsGlebasData = {}; 
+
+        // =========================================================================
+        // MOTOR 4.0: MÁQUINA DE ESTADOS (UNDO/REDO)
+        // =========================================================================
+        
+        let rsHistoryStack = [];
+        let rsHistoryIndex = -1;
+
+        function rsSaveState() {
+            // Se o usuário desfez algumas ações e fez uma nova, descarta o "futuro" alternativo
+            if (rsHistoryIndex < rsHistoryStack.length - 1) {
+                rsHistoryStack = rsHistoryStack.slice(0, rsHistoryIndex + 1);
+            }
+            // Clona a memória atual cirurgicamente via JSON para não herdar referências de memória
+            rsHistoryStack.push(JSON.parse(JSON.stringify(rsGlebasData)));
+            rsHistoryIndex++;
+            rsUpdateHistoryButtons();
+        }
+
+        function rsUndo() {
+            if (rsHistoryIndex > 0) {
+                rsHistoryIndex--;
+                rsGlebasData = JSON.parse(JSON.stringify(rsHistoryStack[rsHistoryIndex]));
+                rsRefreshAllGeometries();
+            }
+        }
+
+        function rsRedo() {
+            if (rsHistoryIndex < rsHistoryStack.length - 1) {
+                rsHistoryIndex++;
+                rsGlebasData = JSON.parse(JSON.stringify(rsHistoryStack[rsHistoryIndex]));
+                rsRefreshAllGeometries();
+            }
+        }
+
+        function rsRefreshAllGeometries() {
+            rsUpdateHistoryButtons();
+            // Redesenha todas as glebas ativas no mapa
+            Object.keys(rsLayersGroup).forEach(k => rsRedrawPolygon(k));
+            // Atualiza a caixa de texto se houver área em edição
+            rsUpdateGlebaInterface(rsActiveGlebaEdit);
+        }
+
+        function rsUpdateHistoryButtons() {
+            document.getElementById('rs-btn-undo').disabled = rsHistoryIndex <= 0;
+            document.getElementById('rs-btn-redo').disabled = rsHistoryIndex >= rsHistoryStack.length - 1;
+        }
+
+        // Atalhos de Teclado Universais
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'z') { e.preventDefault(); rsUndo(); }
+            if (e.ctrlKey && e.key === 'y') { e.preventDefault(); rsRedo(); }
+        });
+        
+        // Liga os botões visuais
+        document.getElementById('rs-btn-undo').addEventListener('click', rsUndo);
+        document.getElementById('rs-btn-redo').addEventListener('click', rsRedo);
+
+        // INICIALIZAÇÃO DO MAPA COM CORREÇÃO PARA O BUG DO ZOOM
+        function rsInitializeMap() {
+            rsMap = L.map('rs-map-render').setView([-3.670, -45.380], 13); 
+            
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                maxZoom: 22,
+                maxNativeZoom: 17, // SOLUÇÃO DO BUG: Impede requisições de servidores sem dados expandindo o nível 17
+                attribution: 'Tiles &copy; Esri &mdash; Source: Esri, USDA, USGS, e comunidade GIS'
+            }).addTo(rsMap);
+        }
+
+        // ATUALIZAÇÃO DA LISTA DE CHECKBOXES E GERENCIAMENTO VISUAL
+        // ATUALIZAÇÃO DA LISTA DE CHECKBOXES E GERENCIAMENTO VISUAL
+        // ATUALIZAÇÃO DA LISTA DE CHECKBOXES E GERENCIAMENTO VISUAL
+        // ATUALIZAÇÃO DA LISTA DE CHECKBOXES E GERENCIAMENTO VISUAL
+        function rsUpdateGlebaInterface(mantemEditando = null) {
+            const listGroup = document.getElementById('rs-glebas-list-group');
+            listGroup.innerHTML = '';
+            
+            const glebas = Object.keys(rsGlebasData);
+            const titleSpan = document.getElementById('rs-active-gleba-title');
+            const btnActivate = document.getElementById('rs-btn-activate-edit');
+            
+            if (glebas.length === 0) {
+                listGroup.innerHTML = '<div style="font-size:0.8rem; color:#64748b; padding:8px; text-align:center;">Nenhuma gleba cadastrada...</div>';
+                document.getElementById('rs-coords-input').value = '';
+                document.getElementById('rs-coords-overlay').innerHTML = ''; // Limpa o holograma
+                titleSpan.textContent = "[NENHUMA ÁREA SELECIONADA]";
+                titleSpan.style.color = "var(--ui-danger)";
+                btnActivate.style.display = "none";
+                rsActiveGlebaEdit = null;
+                rsDrawEditNodes(null); 
+                return;
+            }
+
+            glebas.forEach(gleba => {
+                if (!rsGlebasColors[gleba]) {
+                    const coresPadrao = ['#00A550', '#004C27', '#D99700', '#2563eb', '#ea580c', '#9333ea', '#0284c7', '#b91c1c'];
+                    rsGlebasColors[gleba] = coresPadrao[Object.keys(rsGlebasColors).length % coresPadrao.length];
+                }
+
+                const isChecked = rsLayersGroup[gleba] ? 'checked' : '';
+                const row = document.createElement('div');
+                row.className = 'rs-gleba-item-row';
+                if (rsActiveGlebaEdit === gleba) row.style.borderColor = 'var(--bn-verde-claro)';
+
+                row.innerHTML = `
+                    <input type="checkbox" class="rs-checkbox rs-layer-toggle" data-gleba="${gleba}" ${isChecked}>
+                    <input type="color" class="rs-color-picker rs-layer-color" data-gleba="${gleba}" value="${rsGlebasColors[gleba]}">
+                    <span class="rs-gleba-name-span" data-gleba="${gleba}">${gleba.toUpperCase()}</span>
+                    <button class="rs-mini-btn rs-edit-trigger" data-gleba="${gleba}" title="Editar Coordenadas">📝</button>
+                    <button class="rs-mini-btn rs-rename-trigger" data-gleba="${gleba}" title="Renomear">✏️</button>
+                    <button class="rs-mini-btn rs-delete-trigger" data-gleba="${gleba}" title="Excluir">🗑️</button>
+                `;
+                listGroup.appendChild(row);
+            });
+
+            // SE HOUVER UMA GLEBA SENDO EDITADA, ACIONA O HOLOGRAMA E O TÍTULO
+            if (mantemEditando && rsGlebasData[mantemEditando]) {
+                rsActiveGlebaEdit = mantemEditando;
+                
+                rsSyncTextAndOverlay(mantemEditando);
+                
+                titleSpan.textContent = `- ${mantemEditando.toUpperCase()}`;
+                titleSpan.style.color = "var(--bn-verde-claro)";
+                
+                btnActivate.style.display = "block";
+                
+                const isCurrentlyActive = btnActivate.dataset.active === "true";
+                if (isCurrentlyActive) {
+                    // Se já estava ativo, mantemos o visual de "Ativo"
+                    btnActivate.innerHTML = "✅ MODO DE AJUSTE ATIVO";
+                    btnActivate.style.backgroundColor = "#2563eb";
+                    btnActivate.style.color = "#ffffff";
+                } else {
+                    btnActivate.innerHTML = "🗺️ AJUSTAR GEOMETRIA NO MAPA";
+                    btnActivate.style.backgroundColor = "#f1f5f9";
+                    btnActivate.style.color = "#475569";
+                }
+            }
+            
+            rsBindListEvents();
+            
+            // CORREÇÃO CRÍTICA DO BUG DE RENDERIZAÇÃO:
+            // Só limpa o mapa se NENHUMA gleba estiver em edição. 
+            // Se houver gleba E o botão de ajuste estiver ligado, reconstrói os nós automaticamente!
+            if (!mantemEditando) {
+                rsDrawEditNodes(null);
+            } else {
+                if (btnActivate.dataset.active === "true") {
+                    rsDrawEditNodes(mantemEditando);
+                }
+            }
+        }
+
+        // =========================================================================
+        // MOTOR DO MODAL DE EXPORTAÇÃO E ÁREA DE TRANSFERÊNCIA
+        // =========================================================================
+        let rsCurrentExportName = "exportacao.txt";
+
+        // Função universal para abrir a janela flutuante
+        function rsOpenExportModal(title, filename, content) {
+            document.getElementById('rs-export-modal-title').innerText = title;
+            document.getElementById('rs-export-textarea').value = content;
+            rsCurrentExportName = filename;
+            document.getElementById('rs-export-modal').classList.remove('rs-hidden');
+        }
+
+        // Botão: Copiar Tudo (API Moderna)
+        document.getElementById('rs-btn-modal-copy').addEventListener('click', () => {
+            const textarea = document.getElementById('rs-export-textarea');
+            textarea.select();
+            
+            // Usa a API Clipboard nativa do navegador
+            navigator.clipboard.writeText(textarea.value).then(() => {
+                alert("📋 Conteúdo copiado para a área de transferência com sucesso!");
+            }).catch(err => {
+                console.error("Erro ao copiar: ", err);
+                // Fallback para navegadores muito antigos caso a API falhe
+                document.execCommand('copy');
+                alert("📋 Conteúdo copiado!");
+            });
+        });
+
+        // Botão: Baixar Arquivo TXT a partir do Modal (respeitando se o usuário editou ali dentro)
+        document.getElementById('rs-btn-modal-download').addEventListener('click', () => {
+            const finalContent = document.getElementById('rs-export-textarea').value;
+            const url = URL.createObjectURL(new Blob([finalContent], {type: "text/plain;charset=utf-8"}));
+            const a = document.createElement('a');
+            a.href = url; a.download = rsCurrentExportName; a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        // =========================================================================
+        // BOTÃO 1: EXTRAIR PARA GLEBAS (TXT)
+        // =========================================================================
+        document.getElementById('rs-btn-extract-glebas').addEventListener('click', (e) => {
+            e.preventDefault();
+            let textOutput = "";
+            let hasData = false;
+            let areaIndex = 1;
+
+            Object.keys(rsGlebasData).forEach(gleba => {
+                if (rsGlebasData[gleba].length > 0) {
+                    hasData = true;
+                    rsGlebasData[gleba].forEach((c, pointIndex) => {
+                        let latFormatada = c[0].toFixed(10).replace('.', ',');
+                        let lonFormatada = c[1].toFixed(10).replace('.', ',');
+                        textOutput += `${areaIndex}\t${pointIndex + 1}\t${latFormatada}\t${lonFormatada}\n`;
+                    });
+                    areaIndex++;
+                }
+            });
+
+            if (!hasData) return alert("Nenhuma coordenada em memória para extrair.");
+            rsOpenExportModal("🚜 Exportação Padrão GLEBAS (TXT)", "IMPORTACAO_GLEBAS.txt", textOutput);
+        });
+
+        // =========================================================================
+        // BOTÃO 2: EXTRAIR APENAS COORDENADAS
+        // =========================================================================
+        // Caso você tenha um ID diferente para este botão, ajuste no getElementById abaixo
+        document.getElementById('rs-btn-extract').addEventListener('click', (e) => {
+            e.preventDefault();
+            let textOutput = "";
+            let hasData = false;
+
+            Object.keys(rsGlebasData).forEach(gleba => {
+                if (rsGlebasData[gleba].length > 0) {
+                    hasData = true;
+                    textOutput += `=== ÁREA: ${gleba.toUpperCase()} ===\n`;
+                    rsGlebasData[gleba].forEach(c => {
+                        textOutput += `${c[0].toFixed(10)}, ${c[1].toFixed(10)}, ${c[2]}\n`;
+                    });
+                    textOutput += `\n`;
+                }
+            });
+
+            if (!hasData) return alert("Nenhuma coordenada em memória para extrair.");
+            rsOpenExportModal("📊 Coordenadas Brutas do Projeto", "COORDENADAS_BRUTAS.txt", textOutput);
+        });
+
+        // =========================================================================
+        // IMPORTADOR DE PLANILHA CSV (Motor Dinâmico de Cabeçalhos)
+        // =========================================================================
+        document.getElementById('rs-file-csv').addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const text = await file.text();
+            const lines = text.split('\n');
+            if (lines.length < 2) return alert("Arquivo CSV vazio ou inválido.");
+
+            // Identificação dinâmica de colunas a partir do cabeçalho
+            const headers = lines[0].toLowerCase().split(',');
+            let idxCultura = headers.findIndex(h => h.includes('cultura') || h.includes('gleba') || h.includes('nome'));
+            let idxLat = headers.findIndex(h => h.includes('lat'));
+            let idxLon = headers.findIndex(h => h.includes('long') || h.includes('lon'));
+            let idxAlt = headers.findIndex(h => h.includes('alt'));
+
+            // Fallback caso o CSV não tenha cabeçalho padrão, assume colunas do modelo enviado
+            if (idxCultura === -1) idxCultura = 0;
+            if (idxLat === -1) idxLat = 5;
+            if (idxLon === -1) idxLon = 6;
+            if (idxAlt === -1) idxAlt = 7;
+
+            rsGlebasData = {}; 
+            Object.keys(rsLayersGroup).forEach(k => rsMap.removeLayer(rsLayersGroup[k]));
+            rsLayersGroup = {};
+
+            for (let i = 1; i < lines.length; i++) {
+                let columns = lines[i].split(',');
+                // Verifica se a linha tem colunas suficientes para chegar na Longitude
+                if (columns.length > idxLon) {
+                    let rawCultura = columns[idxCultura] ? columns[idxCultura].trim().toLowerCase() : `area_desconhecida`;
+                    
+                    let latStr = columns[idxLat].trim().replace(/,/, '.');
+                    let lonStr = columns[idxLon].trim().replace(/,/, '.');
+                    let altStr = columns[idxAlt] ? columns[idxAlt].trim().replace(/,/, '.') : '0';
+
+                    let lat = parseFloat(latStr);
+                    let lon = parseFloat(lonStr);
+                    let alt = parseFloat(altStr);
+
+                    if (!isNaN(lat) && !isNaN(lon)) {
+                        if (!rsGlebasData[rawCultura]) rsGlebasData[rawCultura] = [];
+                        rsGlebasData[rawCultura].push([lat, lon, isNaN(alt) ? 0 : alt]);
+                    }
+                }
+            }
+            
+            Object.keys(rsGlebasData).forEach(k => rsRedrawPolygon(k));
+            document.getElementById('rs-glebas-container').classList.remove('rs-hidden');
+            
+            let firstKey = Object.keys(rsGlebasData)[0];
+            rsUpdateGlebaInterface(firstKey);
+            
+            document.querySelectorAll('.rs-layer-toggle').forEach(chk => chk.checked = true);
+            rsFitSelectedGlebas();
+            
+            alert("✅ Planilha interpretada e importada perfeitamente!");
+            e.target.value = '';
+        });
+
+        // RE-ENQUADRAMENTO DINÂMICO CONFORME SELEÇÃO
+        function rsFitSelectedGlebas() {
+            const activeLayers = [];
+            Object.keys(rsLayersGroup).forEach(key => {
+                if (rsLayersGroup[key]) activeLayers.push(rsLayersGroup[key]);
+            });
+
+            if (activeLayers.length > 0) {
+                const group = L.featureGroup(activeLayers);
+                rsMap.fitBounds(group.getBounds());
+            }
+        }
+
+        // REDESENHO EM TEMPO REAL TOTAL
+        function rsRedrawPolygon(gleba) {
+            if (rsLayersGroup[gleba]) {
+                rsMap.removeLayer(rsLayersGroup[gleba]);
+                delete rsLayersGroup[gleba];
+            }
+
+            const coords = rsGlebasData[gleba];
+            if (!rsGlebasColors[gleba]) rsUpdateGlebaInterface();
+            const cor = rsGlebasColors[gleba];
+
+            if (coords && coords.length > 0) {
+                const leafletCoords = coords.map(c => [c[0], c[1]]);
+                
+                if (coords.length === 1) {
+                    rsLayersGroup[gleba] = L.circleMarker(leafletCoords[0], {
+                        color: cor, radius: 6, fillColor: cor, fillOpacity: 0.7
+                    }).addTo(rsMap);
+                } else if (coords.length === 2) {
+                    rsLayersGroup[gleba] = L.polyline(leafletCoords, {
+                        color: cor, weight: 4
+                    }).addTo(rsMap);
+                } else {
+                    rsLayersGroup[gleba] = L.polygon(leafletCoords, {
+                        color: cor, fillColor: cor, fillOpacity: 0.35, weight: 3
+                    }).addTo(rsMap);
+                }
+            }
+        }
+
+        // =========================================================================
+        // SINCRONIA DE ROLAGEM HOLOGRÁFICA
+        // =========================================================================
+        document.getElementById('rs-coords-input').addEventListener('scroll', function() {
+            const overlay = document.getElementById('rs-coords-overlay');
+            overlay.scrollTop = this.scrollTop;
+            overlay.scrollLeft = this.scrollLeft;
+        });
+
+        function rsSyncTextAndOverlay(gleba) {
+            const textarea = document.getElementById('rs-coords-input');
+            const overlay = document.getElementById('rs-coords-overlay');
+            
+            if (!gleba || !rsGlebasData[gleba]) return;
+
+            let rawText = [];
+            let overlayHTML = [];
+
+            rsGlebasData[gleba].forEach((coord, i) => {
+                let lineStr = `${coord[0].toFixed(10)}, ${coord[1].toFixed(10)}, ${coord[2]}`;
+                rawText.push(lineStr);
+                
+                // Monta o Holograma transparente que revela apenas o selo no final da linha
+                if (window.rsEditedNodes && window.rsEditedNodes[gleba] && window.rsEditedNodes[gleba].has(i)) {
+                    overlayHTML.push(`<span>${lineStr}</span><span class="rs-edit-badge">📌 EDITADO</span>`);
+                } else {
+                    overlayHTML.push(`<span>${lineStr}</span>`);
+                }
+            });
+
+            textarea.value = rawText.join('\n');
+            overlay.innerHTML = overlayHTML.join('<br>');
+        }
+
+        // MOTOR DE GERAÇÃO DOS NÓS CONTROLANDO VISIBILIDADE DAS CAMADAS
+        function rsDrawEditNodes(gleba) {
+            window.rsVertexMarkers = window.rsVertexMarkers || [];
+            window.rsVertexMarkers.forEach(m => rsMap.removeLayer(m));
+            window.rsVertexMarkers = [];
+
+            if (!gleba || !rsGlebasData[gleba] || rsGlebasData[gleba].length === 0) return;
+
+            // REGRA 2: Se a camada da gleba estiver desmarcada (oculta) no mapa, NÃO exibe os nós de forma alguma
+            if (!rsLayersGroup[gleba]) return;
+
+            // MANTENEDOR DE ESTADO: Se o botão estiver ativo, garante que o modo de edição persista após redesenhos
+            const btn = document.getElementById('rs-btn-activate-edit');
+            if (btn.dataset.active !== "true") return;
+
+            // =========================================================================
+            // FILTRO DE SINGULARIDADE GEOMÉTRICA (Remove coordenadas duplicadas seguidas)
+            // =========================================================================
+            let rawCoords = rsGlebasData[gleba];
+            let cleanCoords = [rawCoords[0]];
+            for (let i = 1; i < rawCoords.length; i++) {
+                let prev = cleanCoords[cleanCoords.length - 1];
+                let curr = rawCoords[i];
+                // Só adiciona se o ponto atual for diferente do ponto imediatamente anterior
+                if (prev[0] !== curr[0] || prev[1] !== curr[1]) {
+                    cleanCoords.push(curr);
+                }
+            }
+            rsGlebasData[gleba] = cleanCoords; // Atualiza a memória com o KML limpo sem pontos empilhados
+            // =========================================================================
+
+            if (!window.rsEditedNodes) window.rsEditedNodes = {};
+            if (!window.rsEditedNodes[gleba]) window.rsEditedNodes[gleba] = new Set();
+
+            const coords = rsGlebasData[gleba];
+            const iconNormal = L.divIcon({ className: 'rs-vertex-marker', iconSize: [10, 10], iconAnchor: [5, 5] });
+            const iconGhost = L.divIcon({ className: 'rs-vertex-ghost', iconSize: [8, 8], iconAnchor: [4, 4] });
+
+            // 1. GERAÇÃO DOS NÓS REAIS
+            coords.forEach((c, index) => {
+                const marker = L.marker([c[0], c[1]], { icon: iconNormal, draggable: true }).addTo(rsMap);
+
+                marker.on('dragstart', () => rsSaveState()); 
+
+                marker.on('drag', function(e) {
+                    const latlng = e.target.getLatLng();
+                    rsGlebasData[gleba][index][0] = latlng.lat;
+                    rsGlebasData[gleba][index][1] = latlng.lng;
+
+                    window.rsEditedNodes[gleba].add(index);
+
+                    const newLeafletCoords = rsGlebasData[gleba].map(coord => [coord[0], coord[1]]);
+                    if (rsLayersGroup[gleba] && rsLayersGroup[gleba].setLatLngs) { 
+                        rsLayersGroup[gleba].setLatLngs(newLeafletCoords);
+                    }
+
+                    // Usa a nova sincronia holográfica blindada
+                    rsSyncTextAndOverlay(gleba);
+
+                    const textarea = document.getElementById('rs-coords-input');
+                    const lines = textarea.value.split('\n');
+                    let startPos = 0;
+                    for (let i = 0; i < index; i++) startPos += lines[i].length + 1;
+                    let endPos = startPos + lines[index].length;
+                    
+                    const lineHeight = parseInt(window.getComputedStyle(textarea).lineHeight) || 20;
+                    textarea.scrollTop = (index * lineHeight) - (textarea.clientHeight / 2) + lineHeight;
+                    
+                    textarea.setSelectionRange(startPos, endPos);
+                });
+
+                marker.on('dragend', () => rsDrawEditNodes(gleba));
+
+                marker.on('contextmenu', function(e) {
+                    rsSaveState(); 
+                    rsGlebasData[gleba].splice(index, 1); 
+                    window.rsEditedNodes[gleba].clear();
+                    rsRedrawPolygon(gleba);
+                    rsDrawEditNodes(gleba); // Redesenha os nós ativos imediatamente
+                    rsUpdateGlebaInterface(gleba);
+                });
+
+                window.rsVertexMarkers.push(marker);
+            });
+
+            // 2. GERAÇÃO DOS NÓS FANTASMAS
+            if (coords.length >= 2) {
+                for (let i = 0; i < coords.length; i++) {
+                    if (i === coords.length - 1 && coords.length === 2) break;
+                    
+                    let nextIndex = (i + 1) % coords.length;
+                    let midLat = (coords[i][0] + coords[nextIndex][0]) / 2;
+                    let midLng = (coords[i][1] + coords[nextIndex][1]) / 2;
+
+                    const ghost = L.marker([midLat, midLng], { icon: iconGhost, opacity: 0.6 }).addTo(rsMap);
+
+                    ghost.on('click', function() {
+                        rsSaveState(); 
+                        rsGlebasData[gleba].splice(nextIndex, 0, [midLat, midLng, 0.0]);
+                        window.rsEditedNodes[gleba].clear();
+                        rsRedrawPolygon(gleba);
+                        rsDrawEditNodes(gleba); // Mantém o modo de edição ligado após inserir ponto
+                        rsUpdateGlebaInterface(gleba);
+                    });
+
+                    window.rsVertexMarkers.push(ghost);
+                }
+            }
+        }
+
+        // PROCESSADOR ULTRA-ROBUSTO DE COORDENADAS
+        function rsParseCoordinateLine(line) {
+            let cleanLine = line.trim();
+            if (!cleanLine) return null;
+
+            cleanLine = cleanLine.replace(/\t/g, ' ');
+            let parts = cleanLine.split(/[\s;]+/).filter(p => p.length > 0);
+
+            if (parts.length === 1 && cleanLine.includes(',')) {
+                let commaCount = (cleanLine.match(/,/g) || []).length;
+                if(commaCount >= 2 && !cleanLine.includes('.')) {
+                    let negatives = cleanLine.split(/(?=-)/);
+                    if(negatives.length >= 2) {
+                        parts = negatives.map(n => n.replace(/,$/, '').trim());
+                    }
+                } else {
+                    parts = cleanLine.split(',');
+                }
+            }
+
+            let finalParts = parts.map(p => {
+                let item = p.trim().replace(/,/, '.').replace(/,/g, '');
+                return parseFloat(item);
+            }).filter(num => !isNaN(num));
+
+            if (finalParts.length >= 2) {
+                let lat = finalParts[0];
+                let lon = finalParts[1];
+                let alt = finalParts[2] !== undefined ? finalParts[2] : 0.0;
+                return [lat, lon, alt];
+            }
+            return null;
+        }
+
+        // CAPTURA DOS EVENTOS DA CHECKLIST E BOTÕES EM MASSA
+        function rsBindListEvents() {
+            document.querySelectorAll('.rs-layer-toggle').forEach(chk => {
+                chk.addEventListener('change', function() {
+                    const gleba = this.getAttribute('data-gleba');
+                    if (this.checked) {
+                        rsRedrawPolygon(gleba);
+                    } else {
+                        if (rsLayersGroup[gleba]) {
+                            rsMap.removeLayer(rsLayersGroup[gleba]);
+                            delete rsLayersGroup[gleba];
+                        }
+                        // REGRA 2: Se desmarcar a camada ativa na lista, limpa os pontos de edição do mapa imediatamente
+                        // CORREÇÃO: Verifica se o modo de ajuste está ativo no botão antes de redesenhar os nós
+            const btn = document.getElementById('rs-btn-activate-edit');
+            if (gleba === rsActiveGlebaEdit && btn.dataset.active === "true") {
+                rsDrawEditNodes(gleba);
+            }
+                    }
+                    rsFitSelectedGlebas();
+                });
+            });
+
+            document.querySelectorAll('.rs-layer-color').forEach(picker => {
+                picker.addEventListener('input', function() {
+                    const gleba = this.getAttribute('data-gleba');
+                    rsGlebasColors[gleba] = this.value;
+                    if (rsLayersGroup[gleba]) {
+                        // Se for um ponto, atualiza o CircleMarker; se linha/polígono, o style default
+                        if(rsLayersGroup[gleba].setStyle) {
+                            rsLayersGroup[gleba].setStyle({ color: this.value, fillColor: this.value });
+                        }
+                    }
+                });
+            });
+
+            document.querySelectorAll('.rs-edit-trigger, .rs-gleba-name-span').forEach(el => {
+                el.addEventListener('click', function() {
+                    const gleba = this.getAttribute('data-gleba');
+                    rsUpdateGlebaInterface(gleba);
+                });
+            });
+
+            document.querySelectorAll('.rs-rename-trigger').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const oldName = this.getAttribute('data-gleba');
+                    let newName = prompt("Digite o novo nome para esta área:", oldName.toUpperCase());
+                    if (!newName) return;
+                    newName = newName.trim().toLowerCase();
+                    if (newName === oldName) return;
+                    if (rsGlebasData[newName]) return alert("Já existe uma área com este nome.");
+
+                    rsGlebasData[newName] = rsGlebasData[oldName];
+                    rsGlebasColors[newName] = rsGlebasColors[oldName];
+                    delete rsGlebasData[oldName];
+                    delete rsGlebasColors[oldName];
+
+                    if (rsLayersGroup[oldName]) {
+                        rsMap.removeLayer(rsLayersGroup[oldName]);
+                        delete rsLayersGroup[oldName];
+                    }
+                    
+                    if (rsActiveGlebaEdit === oldName) rsActiveGlebaEdit = newName;
+                    rsUpdateGlebaInterface(rsActiveGlebaEdit);
+                    rsRedrawPolygon(newName);
+                    rsFitSelectedGlebas();
+                });
+            });
+
+            document.querySelectorAll('.rs-delete-trigger').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const gleba = this.getAttribute('data-gleba');
+                    if (confirm(`Excluir permanentemente a área ${gleba.toUpperCase()}?`)) {
+                        delete rsGlebasData[gleba];
+                        delete rsGlebasColors[gleba];
+                        if (rsLayersGroup[gleba]) {
+                            rsMap.removeLayer(rsLayersGroup[gleba]);
+                            delete rsLayersGroup[gleba];
+                        }
+                        if (rsActiveGlebaEdit === gleba) rsActiveGlebaEdit = null;
+                        rsUpdateGlebaInterface(rsActiveGlebaEdit);
+                        rsFitSelectedGlebas();
+                    }
+                });
+            });
+        }
+
+        // EVENTOS DOS BOTÕES DE MARCAR/DESMARCAR TODAS
+        document.getElementById('rs-btn-check-all').addEventListener('click', (e) => {
+            e.preventDefault();
+            let changed = false;
+            document.querySelectorAll('.rs-layer-toggle').forEach(chk => {
+                if (!chk.checked) {
+                    chk.checked = true;
+                    const gleba = chk.getAttribute('data-gleba');
+                    rsRedrawPolygon(gleba);
+                    changed = true;
+                }
+            });
+            if (changed) rsFitSelectedGlebas();
+        });
+
+        document.getElementById('rs-btn-uncheck-all').addEventListener('click', (e) => {
+            e.preventDefault();
+            document.querySelectorAll('.rs-layer-toggle').forEach(chk => {
+                if (chk.checked) {
+                    chk.checked = false;
+                    const gleba = chk.getAttribute('data-gleba');
+                    if (rsLayersGroup[gleba]) {
+                        rsMap.removeLayer(rsLayersGroup[gleba]);
+                        delete rsLayersGroup[gleba];
+                    }
+                }
+            });
+        });
+
+        // ADICIONAR NOVA GLEBA MANUALMENTE
+        document.getElementById('rs-btn-add-gleba').addEventListener('click', (e) => {
+            e.preventDefault();
+            const input = document.getElementById('rs-new-gleba-name');
+            const name = input.value.trim().toLowerCase();
+            
+            if (name === "") return alert("Digite um nome para a gleba.");
+            if (rsGlebasData[name]) return alert("Essa gleba já existe!");
+            
+            rsGlebasData[name] = [];
+            input.value = '';
+            rsUpdateGlebaInterface(name);
+        });
+
+        // ENTRADA TEXTUAL DE COORDENADAS (COM DEBOUNCE DE PERFORMANCE)
+        let rsInputTimeout; // Guarda o temporizador
+        
+        document.getElementById('rs-coords-input').addEventListener('input', function(e) {
+            if (!rsActiveGlebaEdit) return;
+            
+            // Cancela a execução se o usuário continuar digitando (isso é o Debounce)
+            clearTimeout(rsInputTimeout);
+            
+            // Inicia um fôlego de 400 milissegundos
+            rsInputTimeout = setTimeout(() => {
+                rsSaveState(); // Registra o histórico
+
+                const lines = e.target.value.split('\n');
+                let validCoords = [];
+                
+                lines.forEach(line => {
+                    const parsed = rsParseCoordinateLine(line);
+                    if (parsed) validCoords.push(parsed);
+                });
+                
+                rsGlebasData[rsActiveGlebaEdit] = validCoords;
+                rsRedrawPolygon(rsActiveGlebaEdit);
+                
+                const chk = document.querySelector(`.rs-layer-toggle[data-gleba="${rsActiveGlebaEdit}"]`);
+                if (chk && !chk.checked) chk.checked = true;
+                
+                if (validCoords.length > 0) rsFitSelectedGlebas();
+            }, 400); 
+        });
+
+        // EXIBIR CONTAINER DE CRIAÇÃO
+        document.getElementById('rs-btn-new').addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.getElementById('rs-glebas-container').classList.remove('rs-hidden');
+            if (rsMap) setTimeout(() => rsMap.invalidateSize(), 200);
+        });
+
+        // IMPORTAÇÃO INTELIGENTE DE KML MULTICAMADAS
+        document.getElementById('rs-file-kml').addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const text = await file.text();
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(text, "text/xml");
+            const placemarks = xmlDoc.getElementsByTagName("Placemark");
+            
+            let errorsFound = false;
+            let logMessages = [];
+            
+            rsGlebasData = {}; 
+            Object.keys(rsLayersGroup).forEach(k => rsMap.removeLayer(rsLayersGroup[k]));
+            rsLayersGroup = {};
+
+            for (let i = 0; i < placemarks.length; i++) {
+                let nameTag = placemarks[i].getElementsByTagName("name")[0];
+                let rawName = nameTag ? nameTag.textContent.trim().toLowerCase() : `area_${i+1}`;
+                
+                if (!rsGlebasData[rawName]) rsGlebasData[rawName] = [];
+
+                let coordsTags = placemarks[i].getElementsByTagName("coordinates");
+                for (let j = 0; j < coordsTags.length; j++) {
+                    let coordsText = coordsTags[j].textContent.trim();
+                    let coordsArray = coordsText.split(/\s+/).filter(c => c.length > 0);
+                    
+                    if (coordsArray.length > 0) {
+                        let firstPoint = coordsArray[0].trim();
+                        let lastPoint = coordsArray[coordsArray.length - 1].trim();
+                        
+                        if (firstPoint !== lastPoint) {
+                            errorsFound = true;
+                            logMessages.push(`⚠️ Gleba '${rawName.toUpperCase()}': Polígono aberto corrigido.`);
+                            coordsArray.push(firstPoint);
+                            coordsTags[j].textContent = coordsArray.join(" ");
+                        }
+
+                        let validCoords = [];
+                        coordsArray.forEach(coord => {
+                            let parts = coord.split(',');
+                            if(parts.length >= 2) {
+                                let lon = parseFloat(parts[0]);
+                                let lat = parseFloat(parts[1]);
+                                let alt = parts[2] ? parseFloat(parts[2]) : 0.0;
+                                validCoords.push([lat, lon, alt]);
+                            }
+                        });
+                        rsGlebasData[rawName] = validCoords;
+                    }
+                }
+                rsRedrawPolygon(rawName);
+            }
+
+            // Auditoria de polígonos abertos simplificada (sem botão fixo)
+            if (errorsFound) {
+                alert("⚠️ O arquivo KML importado continha polígonos abertos.\n\n" + logMessages.join("\n") + "\n\nO sistema já corrigiu internamente para você.");
+            } else {
+                alert("✅ Arquivo KML analisado. Todos os polígonos estão perfeitos.");
+            }
+
+            document.getElementById('rs-glebas-container').classList.remove('rs-hidden');
+            rsUpdateGlebaInterface(Object.keys(rsGlebasData)[0]);
+            document.querySelectorAll('.rs-layer-toggle').forEach(chk => chk.checked = true);
+            rsFitSelectedGlebas();
+            
+            e.target.value = '';
+        });
+
+        // DOWNLOADS DO ZERO COM AUDITORIA GEOMÉTRICA AUTOMÁTICA
+        document.getElementById('rs-btn-download-new').addEventListener('click', () => {
+            let kmlContent = `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n  <Document>\n    <name>PROJETO RURAL</name> `;
+            
+            // =========================================================================
+            // AUDITORIA FINAL: GARANTE QUE TODOS OS POLÍGONOS ESTEJAM FECHADOS ANTES DE SALVAR
+            // =========================================================================
+            let fixedAuto = false;
+            Object.keys(rsGlebasData).forEach(gleba => {
+                let coords = rsGlebasData[gleba];
+                if (coords && coords.length >= 3) {
+                    let first = coords[0];
+                    let last = coords[coords.length - 1];
+                    // Se o primeiro ponto for diferente do último, ele fecha o polígono aqui na memória
+                    if (first[0] !== last[0] || first[1] !== last[1]) {
+                        coords.push([first[0], first[1], first[2] || 0.0]);
+                        fixedAuto = true;
+                    }
+                }
+            });
+
+            if (fixedAuto) {
+                alert("🔧 O sistema detectou polígonos abertos e os fechou automaticamente para o download.");
+                Object.keys(rsGlebasData).forEach(k => rsRedrawPolygon(k));
+                if (rsActiveGlebaEdit) rsSyncTextAndOverlay(rsActiveGlebaEdit);
+            }
+            // =========================================================================
+
+            Object.keys(rsGlebasData).forEach(gleba => {
+                if (rsGlebasData[gleba].length > 0) {
+                    let coordsStr = rsGlebasData[gleba].map(c => `${c[1]},${c[0]},${c[2]}`).join(" ");
+                    kmlContent += `\n    <Placemark>\n      <name>${gleba.toUpperCase()}</name>\n      <Polygon>\n        <tessellate>1</tessellate>\n        <outerBoundaryIs>\n          <LinearRing>\n            <coordinates>${coordsStr}</coordinates>\n          </LinearRing>\n        </outerBoundaryIs>\n      </Polygon>\n    </Placemark>`;
+                }
+            });
+            kmlContent += `\n  </Document>\n</kml>`;
+            
+            const url = URL.createObjectURL(new Blob([kmlContent], {type: "application/vnd.google-earth.kml+xml"}));
+            const a = document.createElement('a');
+            a.href = url; a.download = `NOVO_PROJETO.kml`; a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        // IMPORTAÇÃO DE PLANILHA CSV COM DE-PARA DINÂMICO DE ALTURA
+        document.getElementById('rs-file-csv').addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const text = await file.text();
+            const lines = text.split('\n');
+            rsGlebasData = {}; 
+            Object.keys(rsLayersGroup).forEach(k => rsMap.removeLayer(rsLayersGroup[k]));
+            rsLayersGroup = {};
+
+            for (let i = 1; i < lines.length; i++) {
+                let columns = lines[i].split(',');
+                if (columns.length >= 7) {
+                    let rawCultura = columns[0].trim().toLowerCase();
+                    let lat = parseFloat(columns[5]);
+                    let lon = parseFloat(columns[6]);
+                    let alt = columns[7] ? parseFloat(columns[7]) : 0.0;
+
+                    if (!isNaN(lat) && !isNaN(lon)) {
+                        if (!rsGlebasData[rawCultura]) rsGlebasData[rawCultura] = [];
+                        rsGlebasData[rawCultura].push([lat, lon, alt]);
+                    }
+                }
+            }
+            
+            Object.keys(rsGlebasData).forEach(k => rsRedrawPolygon(k));
+            document.getElementById('rs-glebas-container').classList.remove('rs-hidden');
+            rsUpdateGlebaInterface(Object.keys(rsGlebasData)[0]);
+            
+            document.querySelectorAll('.rs-layer-toggle').forEach(chk => chk.checked = true);
+            rsFitSelectedGlebas();
+            
+            alert("✅ Planilha carregada com sucesso!");
+            e.target.value = '';
+        });
+
+        // =========================================================================
+        // MOTOR DE IMPORTAÇÃO DE EXCEL NATIVO (.XLS / .XLSX) VIA SHEETJS
+        // =========================================================================
+        document.getElementById('rs-file-excel').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            
+            // O FileReader lê o arquivo como um buffer de dados binários
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                
+                // O SheetJS (XLSX) processa a estrutura da Microsoft
+                const workbook = XLSX.read(data, {type: 'array'});
+                
+                // Pega a primeira aba da planilha
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                
+                // Converte a aba em uma matriz [Linhas][Colunas]
+                const json = XLSX.utils.sheet_to_json(worksheet, {header: 1});
+                
+                if (json.length < 2) return alert("A planilha parece estar vazia ou inválida.");
+
+                // Identificação dinâmica de colunas a partir da Linha 0 (Cabeçalho)
+                const headers = (json[0] || []).map(h => String(h).toLowerCase());
+                let idxCultura = headers.findIndex(h => h.includes('cultura') || h.includes('gleba') || h.includes('nome'));
+                let idxLat = headers.findIndex(h => h.includes('lat'));
+                let idxLon = headers.findIndex(h => h.includes('long') || h.includes('lon'));
+                let idxAlt = headers.findIndex(h => h.includes('alt'));
+
+                // Fallback para o modelo padrão caso o cabeçalho seja diferente ou oculto
+                if (idxCultura === -1) idxCultura = 0;
+                if (idxLat === -1) idxLat = 5;
+                if (idxLon === -1) idxLon = 6;
+                if (idxAlt === -1) idxAlt = 7;
+
+                // Salva estado para possibilitar CTRL+Z e limpa a prancheta
+                rsSaveState();
+                rsGlebasData = {}; 
+                Object.keys(rsLayersGroup).forEach(k => rsMap.removeLayer(rsLayersGroup[k]));
+                rsLayersGroup = {};
+
+                // Itera a partir da linha 1 (pulando o cabeçalho)
+                for (let i = 1; i < json.length; i++) {
+                    let row = json[i];
+                    if (!row || row.length === 0) continue; // Pula linhas totalmente em branco
+                    
+                    if (row.length > idxLon && row[idxLat] !== undefined && row[idxLon] !== undefined) {
+                        let rawCultura = row[idxCultura] ? String(row[idxCultura]).trim().toLowerCase() : `area_desconhecida`;
+                        
+                        // O SheetJS pode retornar números puros ou strings. Garantimos a conversão universal.
+                        let latStr = String(row[idxLat]).trim().replace(/,/, '.');
+                        let lonStr = String(row[idxLon]).trim().replace(/,/, '.');
+                        let altStr = row[idxAlt] ? String(row[idxAlt]).trim().replace(/,/, '.') : '0';
+
+                        let lat = parseFloat(latStr);
+                        let lon = parseFloat(lonStr);
+                        let alt = parseFloat(altStr);
+
+                        if (!isNaN(lat) && !isNaN(lon)) {
+                            if (!rsGlebasData[rawCultura]) rsGlebasData[rawCultura] = [];
+                            rsGlebasData[rawCultura].push([lat, lon, isNaN(alt) ? 0 : alt]);
+                        }
+                    }
+                }
+                
+                // Processamento de Renderização Final
+                Object.keys(rsGlebasData).forEach(k => rsRedrawPolygon(k));
+                document.getElementById('rs-glebas-container').classList.remove('rs-hidden');
+                
+                let firstKey = Object.keys(rsGlebasData)[0];
+                rsUpdateGlebaInterface(firstKey);
+                
+                document.querySelectorAll('.rs-layer-toggle').forEach(chk => chk.checked = true);
+                rsFitSelectedGlebas();
+                
+                alert("✅ Planilha Excel (.XLS / .XLSX) lida e importada com sucesso!");
+            };
+            
+            // Dispara a leitura do arquivo no formato ArrayBuffer (necessário para arquivos binários modernos)
+            reader.readAsArrayBuffer(file);
+            
+            // Limpa o input para permitir importar o mesmo arquivo de novo se necessário
+            e.target.value = '';
+        });
+
+        // =========================================================================
+        // MOTOR 3.0: ANÁLISE DE RISCO (FARMCHECK) E GEOMETRIA COMPUTACIONAL
+        // =========================================================================
+        
+        let rsRiskData = {}; // Guarda as geometrias de restrição [Reserva Legal, APP, etc]
+        let rsRiskLayers = {}; // Guarda as camadas visuais do Farmcheck no mapa
+
+        // 1. IMPORTAÇÃO DOS KML'S DO FARMCHECK (MÚLTIPLOS OU UNITÁRIOS)
+        document.getElementById('rs-file-farmcheck').addEventListener('change', async function(e) {
+            const files = e.target.files;
+            if (!files || files.length === 0) return;
+
+            const riskList = document.getElementById('rs-risk-list-group');
+            // Se for a primeira importação, limpa o texto de "Nenhuma restrição"
+            if (Object.keys(rsRiskData).length === 0) riskList.innerHTML = '';
+
+            for (let f = 0; f < files.length; f++) {
+                const file = files[f];
+                const text = await file.text();
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(text, "text/xml");
+                const placemarks = xmlDoc.getElementsByTagName("Placemark");
+                
+                // Remove extensão do nome do arquivo para usar de rótulo (Ex: "Reserva Legal")
+                let typeName = file.name.replace(/\.kml$/i, '').trim().toUpperCase();
+                
+                // Se o tipo já existir, limpa a camada antiga dele no mapa para evitar duplicidade
+                if (rsRiskLayers[typeName]) {
+                    rsMap.removeLayer(rsRiskLayers[typeName]);
+                    delete rsRiskLayers[typeName];
+                }
+                rsRiskData[typeName] = [];
+
+                let hasGeometry = false;
+
+                for (let i = 0; i < placemarks.length; i++) {
+                    let coordsTags = placemarks[i].getElementsByTagName("coordinates");
+                    for (let j = 0; j < coordsTags.length; j++) {
+                        let coordsText = coordsTags[j].textContent.trim();
+                        let coordsArray = coordsText.split(/\s+/).filter(c => c.length > 0);
+                        
+                        if (coordsArray.length >= 3) {
+                            let validCoords = [];
+                            coordsArray.forEach(coord => {
+                                let parts = coord.split(',');
+                                if (parts.length >= 2) {
+                                    // KML é Lon, Lat. Nossa memória armazena [Lat, Lon, Alt]
+                                    validCoords.push([parseFloat(parts[1]), parseFloat(parts[0]), parts[2] ? parseFloat(parts[2]) : 0.0]);
+                                }
+                            });
+                            // Guarda o polígono de risco
+                            rsRiskData[typeName].push(validCoords);
+                            hasGeometry = true;
+                        }
+                    }
+                }
+
+                if (hasGeometry) {
+                    // Renderiza a Área de Risco no mapa (Tom Vermelho/Alerta)
+                    // Como rsRiskData[typeName] é uma matriz de polígonos (multi-polígono), extraímos as coordenadas [Lat, Lon]
+                    let leafletPolyCoords = rsRiskData[typeName].map(poly => poly.map(c => [c[0], c[1]]));
+                    
+                    rsRiskLayers[typeName] = L.polygon(leafletPolyCoords, {
+                        color: '#dc2626',
+                        fillColor: '#ef4444',
+                        fillOpacity: 0.25,
+                        weight: 2,
+                        dashArray: '5, 5'
+                    }).addTo(rsMap);
+
+                    // Adiciona o item visualmente na checklist de risco do painel
+                    const row = document.createElement('div');
+                    row.className = 'rs-gleba-item-row';
+                    row.style.borderLeft = '3px solid #dc2626';
+                    row.innerHTML = `
+                        <span style="font-size:0.8rem; font-weight:600; color:#b91c1c; flex:1;">🚫 ${typeName}</span>
+                        <button class="rs-mini-btn" onclick="rsRemoveRiskArea('${typeName}', this)" title="Remover Restrição">🗑️</button>
+                    `;
+                    riskList.appendChild(row);
+                }
+            }
+
+            // Faz o enquadramento do mapa para englobar as áreas de risco carregadas
+            const activeRiskLayers = Object.values(rsRiskLayers);
+            if (activeRiskLayers.length > 0) {
+                const group = L.featureGroup(activeRiskLayers);
+                rsMap.fitBounds(group.getBounds());
+            }
+
+            alert("✅ Arquivos do Farmcheck carregados e mapeados como Áreas de Risco!");
+            e.target.value = '';
+        });
+
+        // Função auxiliar para remover uma área de risco individual do painel
+        window.rsRemoveRiskArea = function(typeName, btnElement) {
+            if (rsRiskLayers[typeName]) {
+                rsMap.removeLayer(rsRiskLayers[typeName]);
+                delete rsRiskLayers[typeName];
+            }
+            delete rsRiskData[typeName];
+            btnElement.parentElement.remove();
+
+            if (Object.keys(rsRiskData).length === 0) {
+                document.getElementById('rs-risk-list-group').innerHTML = '<div style="font-size:0.8rem; color:#94a3b8; padding:4px; text-align:center;">Nenhuma restrição importada...</div>';
+            }
+        };
+
+        // 2. O CÉREBRO: EXECUTOR DA AUTO-CORREÇÃO DE SOBREPOSIÇÕES (SUBTRAÇÃO GEOMÉTRICA)
+        document.getElementById('rs-btn-auto-fix').addEventListener('click', (e) => {
+            e.preventDefault();
+            
+            const glebaKeys = Object.keys(rsGlebasData);
+            const riskKeys = Object.keys(rsRiskData);
+            const btn = e.target;
+
+            if (glebaKeys.length === 0) return alert("Erro: Carregue ou desenhe primeiro as glebas do projeto para executar a correção.");
+            if (riskKeys.length === 0) return alert("Erro: Importe ao menos uma área de risco (APP/Reserva) do Farmcheck para realizar o cruzamento.");
+
+            // UX: Feedback visual de processamento (Trava o botão e avisa o usuário)
+            const originalText = btn.innerHTML;
+            btn.innerHTML = "⏳ Processando Álgebra Espacial...";
+            btn.style.backgroundColor = "#94a3b8";
+            btn.disabled = true;
+
+            // O setTimeout libera o DOM para atualizar a cor do botão antes de travar o motor com cálculos matemáticos pesados
+            setTimeout(() => {
+                let totalModificadas = 0;
+                let logDetalhamento = [];
+
+                // Varre cada gleba do seu projeto
+                glebaKeys.forEach(glebaName => {
+                    let projectCoords = rsGlebasData[glebaName];
+                    if (!projectCoords || projectCoords.length < 3) return;
+
+                    let turfProjectCoords = projectCoords.map(c => [c[1], c[0]]);
+                    if (turfProjectCoords[0][0] !== turfProjectCoords[turfProjectCoords.length - 1][0] || 
+                        turfProjectCoords[0][1] !== turfProjectCoords[turfProjectCoords.length - 1][1]) {
+                        turfProjectCoords.push([turfProjectCoords[0][0], turfProjectCoords[0][1]]);
+                    }
+
+                    let projectPolygon = turf.polygon([turfProjectCoords]);
+                    let mudouGleba = false;
+                    let restricoesAtingidas = [];
+
+                    // Intersecciona a gleba sequencialmente contra cada área de risco importada
+                    riskKeys.forEach(riskName => {
+                        let riskPolygonsList = rsRiskData[riskName];
+                        
+                        riskPolygonsList.forEach(riskCoords => {
+                            if (riskCoords.length < 3) return;
+
+                            let turfRiskCoords = riskCoords.map(c => [c[1], c[0]]);
+                            if (turfRiskCoords[0][0] !== turfRiskCoords[turfRiskCoords.length - 1][0] || 
+                                turfRiskCoords[0][1] !== turfRiskCoords[turfRiskCoords.length - 1][1]) {
+                                turfRiskCoords.push([turfRiskCoords[0][0], turfRiskCoords[0][1]]);
+                            }
+
+                            let riskPolygon = turf.polygon([turfRiskCoords]);
+
+                            try {
+                                // 1º Passo: Verifica rapidamente se há colisão para não gastar processamento à toa
+                                let intersection = turf.intersect(projectPolygon, riskPolygon);
+                                
+                                if (intersection) {
+                                    // 2º Passo: Realiza o recorte cirúrgico COM MARGEM DE SEGURANÇA ANTI-TRISCO
+                                const MARGEM_SEGURANCA_KM = 0.001; // 1 metro de buffer
+                                let riskPolygonExpandido = turf.buffer(riskPolygon, MARGEM_SEGURANCA_KM, {units: 'kilometers'});
+                                
+                                // Subtrai a gleba contra a área de risco JÁ EXPANDIDA
+                                let difference = turf.difference(projectPolygon, riskPolygonExpandido);
+                                projectPolygon = difference ? difference : null; // Se der null, o projeto foi totalmente engolido pela restrição
+                                    
+                                    mudouGleba = true;
+                                    if (!restricoesAtingidas.includes(riskName)) restricoesAtingidas.push(riskName);
+                                }
+                            } catch (err) {
+                                console.error("Erro topográfico no cruzamento:", err);
+                            }
+                        });
+                    });
+
+                    // Se houve modificação matemática, atualizamos a memória do sistema
+                    if (mudouGleba) {
+                        totalModificadas++;
+                        logDetalhamento.push(`- Gleba '${glebaName.toUpperCase()}' invadia: ${restricoesAtingidas.join(', ')}`);
+                        
+                        if (projectPolygon === null) {
+                            rsGlebasData[glebaName] = []; 
+                        } else {
+                            let newCoords = [];
+                            if (projectPolygon.geometry.type === "Polygon") {
+                                newCoords = projectPolygon.geometry.coordinates[0].map(c => [c[1], c[0], 0.0]);
+                            } else if (projectPolygon.geometry.type === "MultiPolygon") {
+                                // Pega apenas o maior fragmento para evitar a quebra do KML em ilhas
+                                newCoords = projectPolygon.geometry.coordinates[0][0].map(c => [c[1], c[0], 0.0]);
+                                // NOVO: Anota a fragmentação no painel de log para o operador
+                                logDetalhamento.push(`  ⚠️ ALERTA: A área foi dividida ao meio pelo recorte. O sistema manteve apenas o fragmento principal.`);
+                            }
+                            rsGlebasData[glebaName] = newCoords;
+                        }
+                        
+                        rsRedrawPolygon(glebaName);
+                    }
+                });
+
+                // Restaura o visual do botão no painel
+                btn.innerHTML = originalText;
+                btn.style.backgroundColor = "#004C27"; // Remove a cor forçada e deixa o CSS padrão (Verde) assumir
+                btn.disabled = false;
+
+                // Emite o Relatório Diagnóstico detalhado para o Operador
+                if (totalModificadas > 0) {
+                    rsUpdateGlebaInterface(rsActiveGlebaEdit || Object.keys(rsGlebasData)[0]);
+                    rsFitSelectedGlebas();
+                    alert(`🎯 SUCESSO! Recorte Geoespacial Concluído.\n\nO sistema corrigiu ${totalModificadas} área(s) do projeto:\n${logDetalhamento.join('\n')}\n\nO novo traçado seguro já está no mapa e pronto para download.`);
+                } else {
+                    alert(`✅ ANÁLISE CONCLUÍDA: 100% LEGAL.\n\nO motor cruzou as ${glebaKeys.length} gleba(s) do projeto contra ${riskKeys.length} arquivo(s) de restrição.\n\nRESULTADO: Nenhuma sobreposição ou invasão detectada. Seu KML original já está perfeito.`);
+                }
+                
+            }, 100); 
+        });
+
+        // =========================================================================
+        // 1.B IMPORTAÇÃO DO LIMITE DO CAR OFICIAL
+        // =========================================================================
+        document.getElementById('rs-file-car').addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const text = await file.text();
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(text, "text/xml");
+            const placemarks = xmlDoc.getElementsByTagName("Placemark");
+            
+            let validCoords = [];
+            
+            for (let i = 0; i < placemarks.length; i++) {
+                let coordsTags = placemarks[i].getElementsByTagName("coordinates");
+                for (let j = 0; j < coordsTags.length; j++) {
+                    let coordsText = coordsTags[j].textContent.trim();
+                    let coordsArray = coordsText.split(/\s+/).filter(c => c.length > 0);
+                    
+                    if (coordsArray.length >= 3) {
+                        let polyRing = [];
+                        coordsArray.forEach(coord => {
+                            let parts = coord.split(',');
+                            if (parts.length >= 2) {
+                                // Leaflet usa [Lat, Lng], mas o Turf.js (matemática) exige [Lng, Lat]
+                                polyRing.push([parseFloat(parts[0]), parseFloat(parts[1])]);
+                            }
+                        });
+                        // Costura o polígono do CAR se vier aberto do Governo
+                        if (polyRing[0][0] !== polyRing[polyRing.length - 1][0] || polyRing[0][1] !== polyRing[polyRing.length - 1][1]) {
+                            polyRing.push([...polyRing[0]]);
+                        }
+                        validCoords.push(polyRing);
+                    }
+                }
+            }
+
+            if (validCoords.length > 0) {
+                // Se já houver um CAR antigo desenhado na tela, limpa ele
+                if (window.rsCarLayer) {
+                    rsMap.removeLayer(window.rsCarLayer);
+                }
+                
+                // Salva na memória matemática do sistema (Pega o anel principal)
+                window.rsCarPolygon = turf.polygon([validCoords[0]]); 
+
+                // Converte de volta para [Lat, Lng] apenas para desenhar visualmente no Leaflet
+                let leafletCoords = validCoords[0].map(c => [c[1], c[0]]);
+                
+                // Desenha no mapa (Estilo Oficial: Borda Azul Forte, Sem preenchimento)
+                window.rsCarLayer = L.polygon(leafletCoords, {
+                    color: '#2563eb',
+                    fillColor: 'transparent',
+                    weight: 3,
+                    dashArray: '8, 8'
+                }).addTo(rsMap);
+
+                // Centraliza a câmera no CAR
+                rsMap.fitBounds(window.rsCarLayer.getBounds());
+                
+                // Feedback visual de sucesso no botão
+                const btnImportCar = document.getElementById('rs-btn-import-car');
+                btnImportCar.innerHTML = "✅ CAR OFICIAL CARREGADO";
+                btnImportCar.style.backgroundColor = "#eff6ff";
+                
+                alert("🗺️ Limite do CAR importado com sucesso! \n\nO perímetro oficial está marcado em azul tracejado no mapa. Agora você pode usar a função de enquadramento.");
+            } else {
+                alert("⚠️ Não foi possível extrair um perímetro válido deste arquivo KML do CAR.");
+            }
+            
+            e.target.value = ''; // Limpa a memória do input
+        });
+
+        // =========================================================================
+        // MOTOR DO CAR: INTERSEÇÃO COM MARGEM INTERNA
+        // =========================================================================
+        document.getElementById('rs-btn-auto-fit-car').addEventListener('click', () => {
+            if (!window.rsCarPolygon) { // Assumindo que você salvou o KML do CAR nesta variável na importação
+                return alert("⚠️ Por favor, importe o KML do CAR Oficial primeiro.");
+            }
+
+            if (!confirm("Isso forçará todas as áreas cadastradas a ficarem estritamente dentro do limite do CAR, respeitando uma margem de segurança. Confirmar?")) return;
+
+            // 1. Margem Negativa: Encolhe o CAR em 1 metro (0.001 km) para garantir que a gleba não fique na linha limite
+            const MARGEM_INTERNA_KM = -0.001; 
+            let carEncolhido = turf.buffer(window.rsCarPolygon, MARGEM_INTERNA_KM, {units: 'kilometers'});
+
+            let houveAjuste = false;
+
+            // 2. Varre todas as glebas em memória
+            Object.keys(rsGlebasData).forEach(gleba => {
+                let coords = rsGlebasData[gleba];
+                if (coords && coords.length >= 3) {
+                    // Transforma a gleba atual em um polígono do Turf
+                    let polyCoords = coords.map(c => [c[1], c[0]]); // Leaflet (Lat, Lng) -> Turf (Lng, Lat)
+                    if (polyCoords[0][0] !== polyCoords[polyCoords.length-1][0] || polyCoords[0][1] !== polyCoords[polyCoords.length-1][1]) {
+                        polyCoords.push([...polyCoords[0]]);
+                    }
+                    let glebaTurf = turf.polygon([polyCoords]);
+
+                    // 3. A MÁGICA: Pega APENAS o que está dentro do CAR encolhido
+                    let intersecao = turf.intersect(glebaTurf, carEncolhido);
+
+                    if (intersecao) {
+                        // Se houver interseção, atualiza as coordenadas da gleba com o novo limite
+                        rsSaveState(); // Salva o histórico de undo/redo
+                        let novasCoordsTurf = intersecao.geometry.coordinates[0];
+                        rsGlebasData[gleba] = novasCoordsTurf.map(c => [c[1], c[0], 0.0]); // Volta para (Lat, Lng, Alt)
+                        
+                        // Zera os selos de edição antigos dessa gleba, pois ela foi reconstruída
+                        if (window.rsEditedNodes && window.rsEditedNodes[gleba]) {
+                            window.rsEditedNodes[gleba].clear();
+                        }
+                        houveAjuste = true;
+                    }
+                }
+            });
+
+            if (houveAjuste) {
+                // Redesenha e avisa
+                Object.keys(rsGlebasData).forEach(k => rsRedrawPolygon(k));
+                if (rsActiveGlebaEdit) rsSyncTextAndOverlay(rsActiveGlebaEdit);
+                alert("🎯 Áreas ajustadas! Todas as glebas foram enquadradas perfeitamente dentro do perímetro do CAR.");
+            } else {
+                alert("Nenhuma modificação foi necessária ou as glebas estão totalmente fora do CAR.");
+            }
+        });
+
+        // =========================================================================
+        // REGRA DE TOGGLE DO BOTÃO DE ATIVAÇÃO CAD
+        // =========================================================================
+        document.getElementById('rs-btn-activate-edit').addEventListener('click', function(e) {
+            e.preventDefault();
+            if (!rsActiveGlebaEdit) return;
+
+            if (!rsLayersGroup[rsActiveGlebaEdit]) {
+                alert("Aviso: Ative o checkbox de exibição desta gleba na lista acima para poder ajustar a geometria no mapa.");
+                return;
+            }
+
+            // O Efeito "Interruptor"
+            if (this.dataset.active === "true") {
+                this.dataset.active = "false";
+                this.innerHTML = "🗺️ Ajustar Geometria no Mapa";
+                this.style.backgroundColor = "#f1f5f9";
+                this.style.color = "#475569";
+                rsDrawEditNodes(null); // Desliga os nós do mapa
+            } else {
+                this.dataset.active = "true";
+                this.innerHTML = "✅ Modo de Ajuste Ativo";
+                this.style.backgroundColor = "#004C27";
+                this.style.color = "#ffffff";
+                rsDrawEditNodes(rsActiveGlebaEdit); // Liga os nós
+            }
+        });
+
+        // =========================================================================
+        // BOTÃO LIMPAR TUDO - FAXINA NUCLEAR (MAPA E INTERFACE)
+        // =========================================================================
+        document.getElementById('rs-btn-clear').addEventListener('click', (e) => {
+            e.preventDefault();
+            
+            if (confirm("Tem certeza que deseja limpar todos os dados do mapa e do painel?")) {
+                
+                // 1. ZERA A MEMÓRIA MATEMÁTICA (Back-end)
+                rsGlebasData = {};
+                rsGlebasColors = {};
+                rsRiskData = {};
+                window.rsEditedNodes = {};
+                rsFixedKmlBlob = null;
+                rsActiveGlebaEdit = null;
+                window.rsCarPolygon = null;
+
+                // 2. LIMPEZA BRUTA DO MAPA (Leaflet)
+                // Remove Glebas do projeto
+                if (rsLayersGroup) Object.keys(rsLayersGroup).forEach(k => rsMap.removeLayer(rsLayersGroup[k]));
+                rsLayersGroup = {};
+                
+                // Remove Áreas de Risco
+                if (rsRiskLayers) Object.keys(rsRiskLayers).forEach(k => rsMap.removeLayer(rsRiskLayers[k]));
+                rsRiskLayers = {};
+                
+                // Remove Limite do CAR
+                if (window.rsCarLayer) {
+                    rsMap.removeLayer(window.rsCarLayer);
+                    window.rsCarLayer = null;
+                }
+                
+                // Remove os nós de edição (bolinhas)
+                rsDrawEditNodes(null);
+
+                // 3. LIMPEZA FORÇADA DA INTERFACE (Front-end)
+                // Zera caixas de texto e títulos
+                document.getElementById('rs-active-gleba-title').textContent = "[NENHUMA ÁREA SELECIONADA]";
+                document.getElementById('rs-coords-input').value = '';
+                if (document.getElementById('rs-coords-overlay')) document.getElementById('rs-coords-overlay').innerHTML = '';
+                
+                // Oculta a caixa principal de glebas
+                const glebasContainer = document.getElementById('rs-glebas-container');
+                if (glebasContainer) glebasContainer.classList.add('rs-hidden');
+                
+                // Injeta o HTML vazio nas listas de glebas e restrições
+                document.getElementById('rs-glebas-list-group').innerHTML = '<div style="font-size:0.8rem; color:#64748b; padding:8px; text-align:center;">Nenhuma gleba cadastrada...</div>';
+                document.getElementById('rs-risk-list-group').innerHTML = '<div style="font-size:0.8rem; color:#64748b; padding:4px; text-align:center;">Nenhuma restrição importada...</div>';
+                
+                // Reseta botões e oculta o botão de download antigo
+                const btnDownloadOld = document.getElementById('rs-btn-download-fixed');
+                if (btnDownloadOld) btnDownloadOld.classList.add('rs-hidden');
+                
+                const btnActivate = document.getElementById('rs-btn-activate-edit');
+                if (btnActivate) {
+                    btnActivate.style.display = "none";
+                    btnActivate.dataset.active = "false";
+                }
+                
+                const btnImportCar = document.getElementById('rs-btn-import-car');
+                if (btnImportCar) {
+                    btnImportCar.innerHTML = "🗺️ IMPORTAR LIMITE DO CAR OFICIAL";
+                    btnImportCar.style.backgroundColor = ""; 
+                }
+
+                // 4. LIMPA OS BUFFERS DE UPLOAD (Para permitir importar o mesmo arquivo de novo)
+                const inputsFiles = ['rs-file-kml', 'rs-file-csv', 'rs-file-farmcheck', 'rs-file-car', 'rs-file-excel'];
+                inputsFiles.forEach(id => {
+                    let el = document.getElementById(id);
+                    if (el) el.value = '';
+                });
+
+                alert("✨ Limpeza Concluída.");
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            rsInitializeMap();
+            rsSaveState(); // Marco zero do histórico
+        });
+
+        function rsHighlightMarkerFromText() {
+            const textarea = document.getElementById('rs-coords-input');
+            const gleba = rsActiveGlebaEdit;
+            if (!gleba || !window.rsVertexMarkers) return;
+
+            // 1. Calcula o número da linha atual (índice do ponto)
+            const cursorPosition = textarea.selectionStart;
+            const textUpToCursor = textarea.value.substring(0, cursorPosition);
+            const lineIndex = textUpToCursor.split('\n').length - 1;
+
+            // 2. Remove destaques anteriores de todos os marcadores
+            window.rsVertexMarkers.forEach(m => {
+                if (m.getElement()) {
+                    m.getElement().classList.remove('rs-vertex-marker-highlight');
+                }
+            });
+
+            // 3. Aplica destaque ao marcador correspondente (se existir)
+            // Lembre-se: os vértices reais estão nos índices 0 até (n-1) do array
+            if (lineIndex >= 0 && lineIndex < window.rsVertexMarkers.length) {
+                const marker = window.rsVertexMarkers[lineIndex];
+                if (marker.getElement()) {
+                    marker.getElement().classList.add('rs-vertex-marker-highlight');
+                    // Opcional: Centraliza o mapa no ponto se estiver fora da tela
+                    // rsMap.setView(marker.getLatLng()); 
+                }
+            }
+        }
+
+        const coordsInput = document.getElementById('rs-coords-input');
+        
+        // Dispara o destaque ao clicar ou mover com setas
+        coordsInput.addEventListener('keyup', rsHighlightMarkerFromText);
+        coordsInput.addEventListener('click', rsHighlightMarkerFromText);
 
 
 </script>
