@@ -3263,25 +3263,33 @@ function acionarGeradorManual() {
             // =========================================================================
             let contImoveisManuaisLCG = 0;
 
-            function prepararModalManualLCG() {
+            // =====================================================================
+// FUNÇÃO PREPARAR LCG MANUAL (INTEGRADA E BLINDADA CONTRA PERDA DE DADOS)
+// =====================================================================
+function prepararModalManualLCG() {
     try {
         const d = (id) => document.getElementById(id)?.value || "";
         const set = (id, val) => { let el = document.getElementById(id); if(el) { el.value = val; el.dispatchEvent(new Event('input')); } };
         
-        // Suga os dados do painel principal para o modo Manual
-        set('man_lcg_nome', d('nome_titular').toUpperCase());
-        set('man_lcg_cpf', d('cpf_titular'));
-        set('man_lcg_ano', d('par_ano_inicio') || new Date().getFullYear());
-        set('man_lcg_adimplente', d('par_adimplencia') || "está adimplente");
-        set('man_lcg_atraso', d('par_atrasos') || "sem atrasos");
-        
-        let rawAtiv = d('proj_atividade_projeto') || d('proj_atividade') || "";
-        set('man_lcg_atividade', rawAtiv);
-        set('man_lcg_setor', rawAtiv.toLowerCase().includes("agri") || rawAtiv.toLowerCase().includes("lavoura") ? "Agricultura" : "Pecuária");
-        
-        set('man_lcg_tipo', d('proj_tipo'));
-        set('man_lcg_valor', d('proj_valor_prop'));
-        set('man_lcg_prazo', d('proj_prazo'));
+        // 🚀 TRAVA MESTRA: Verifica se estamos no modo 100% manual limpo
+        let isManualPuro = (typeof modoGeracaoAtual !== 'undefined' && modoGeracaoAtual === 'MANUAL');
+
+        // Só suga os dados do painel se NÃO for modo manual puro
+        if (!isManualPuro) {
+            set('man_lcg_nome', d('nome_titular').toUpperCase());
+            set('man_lcg_cpf', d('cpf_titular'));
+            set('man_lcg_ano', d('par_ano_inicio') || new Date().getFullYear());
+            set('man_lcg_adimplente', d('par_adimplencia') || "está adimplente");
+            set('man_lcg_atraso', d('par_atrasos') || "sem atrasos");
+            
+            let rawAtiv = d('proj_atividade_projeto') || d('proj_atividade') || "";
+            set('man_lcg_atividade', rawAtiv);
+            set('man_lcg_setor', rawAtiv.toLowerCase().includes("agri") || rawAtiv.toLowerCase().includes("lavoura") ? "Agricultura" : "Pecuária");
+            
+            set('man_lcg_tipo', d('proj_tipo'));
+            set('man_lcg_valor', d('proj_valor_prop'));
+            set('man_lcg_prazo', d('proj_prazo'));
+        }
         
         // Limpa o container de imóveis do modal manual
         let cont = document.getElementById('man_lcg_container_imoveis');
@@ -3292,7 +3300,10 @@ function acionarGeradorManual() {
         let gIds = typeof garantiasRowsIds !== 'undefined' ? garantiasRowsIds : [];
         let addedImoveis = 0;
         
-        if (gIds.length > 0) {
+        // =========================================================
+        // MOTOR DE INJEÇÃO DE GARANTIAS E INTERVENIENTES (NOVO) LCG MANUAL
+        // =========================================================
+        if (gIds.length > 0 && !isManualPuro) {
             gIds.forEach(rowId => {
                 let imoId = d(`prop_garantia_imovel_${rowId}`);
                 if (imoId) {
@@ -3304,36 +3315,55 @@ function acionarGeradorManual() {
                     set(`man_lcg_imo_mat_${addedImoveis}`, d(`imo_matricula_${imoId}`) || d(`imo_mat_${imoId}`));
                     set(`man_lcg_imo_cid_${addedImoveis}`, cidUf);
                     set(`man_lcg_imo_posse_${addedImoveis}`, d(`imo_grau_posse_${imoId}`) || "100");
- 
-                    // Trata a inclusão dos Intervenientes baseando-se na posse
+
+                    let currentAdded = addedImoveis; // Trava de escopo para o delay assíncrono
+                    
                     setTimeout(() => {
-                        let container = document.getElementById(`container_intervenientes_imo_${addedImoveis}`);
-                        if(container && d('par_tem_interveniente') === 'SIM') {
-                            let inpsNome = container.querySelectorAll('.inp-nome-interv');
-                            if (inpsNome.length > 0) {
-                                inpsNome[0].value = d('par_interveniente_nome');
-                                container.querySelectorAll('.inp-cpf-interv')[0].value = d('par_interveniente_cpf');
-                                let posseTit = parseFloat(d(`imo_grau_posse_${imoId}`) || 100);
-                                if(posseTit < 100) {
+                        let container = document.getElementById(`container_intervenientes_imo_${currentAdded}`);
+                        if(container) {
+                            let idxProp = 0;
+                            while (true) {
+                                let elNome = document.getElementById(`prop_nome_${imoId}_${idxProp}`);
+                                if (!elNome) break;
+                                
+                                let nVal = elNome.value.trim();
+                                let cVal = document.getElementById(`prop_cpf_${imoId}_${idxProp}`)?.value || "";
+                                let pVal = document.getElementById(`prop_posse_${imoId}_${idxProp}`)?.value || "";
+                                
+                                if (nVal) {
+                                    let inpsNome = container.querySelectorAll('.inp-nome-interv');
+                                    let inpsCpf = container.querySelectorAll('.inp-cpf-interv');
                                     let inpsPosse = container.querySelectorAll('.inp-posse-interv');
-                                    inpsPosse[0].value = 100 - posseTit; inpsPosse[0].dispatchEvent(new Event('input'));
+                                    
+                                    if (idxProp < inpsNome.length) {
+                                        inpsNome[idxProp].value = nVal;
+                                        if (inpsCpf[idxProp]) inpsCpf[idxProp].value = cVal;
+                                        if (pVal && inpsPosse[idxProp]) {
+                                            inpsPosse[idxProp].value = pVal;
+                                            inpsPosse[idxProp].dispatchEvent(new Event('input')); // Motor de Cascata
+                                        }
+                                    }
                                 }
+                                idxProp++;
                             }
                         }
-                    }, 100);
+                    }, 150);
                 }
             });
         }
         
-        // Se não houver imóveis na garantia, adiciona pelo menos um campo vazio
+        // Se não houver imóveis na garantia (ou se a trava bloqueou o preenchimento automático), adiciona pelo menos um campo vazio
         if (addedImoveis === 0) {
             if(typeof adicionarImovelManualLCG === 'function') adicionarImovelManualLCG();
         }
         
-        set('man_lcg_id_end', d('par_id_end'));
-        set('man_lcg_id_renda', d('par_id_renda'));
-        set('man_lcg_ger_rel', d('par_gerente_rel'));
- 
+        // Só carrega informações de gerente e renda se NÃO for manual puro
+        if (!isManualPuro) {
+            set('man_lcg_id_end', d('par_id_end'));
+            set('man_lcg_id_renda', d('par_id_renda'));
+            set('man_lcg_ger_rel', d('par_gerente_rel'));
+        }
+
     } catch(err) {
         console.error("Erro interno ao preparar LCG Manual:", err);
     } finally {
@@ -3437,43 +3467,72 @@ function acionarGeradorManual() {
         let gIds = typeof garantiasRowsIds !== 'undefined' ? garantiasRowsIds : [];
         let addedImoveis = 0;
         
+        // =========================================================
+        // MOTOR DE INJEÇÃO DE GARANTIAS E INTERVENIENTES (NOVO) LCG PROPOSTA
+        // =========================================================
         if (gIds.length > 0) {
             gIds.forEach(rowId => {
                 let imoId = d(`prop_garantia_imovel_${rowId}`);
                 if (imoId) {
-                    addedImoveis++; adicionarImovelManualLCG();
+                    addedImoveis++; 
+                    if(typeof adicionarImovelManualLCG === 'function') adicionarImovelManualLCG();
+                    
                     let cidUf = d(`imo_cidade_${imoId}`) ? `${d(`imo_cidade_${imoId}`).split('-')[0].trim()} - ${d(`imo_uf_${imoId}`) || 'MA'}` : "";
                     set(`man_lcg_imo_nome_${addedImoveis}`, d(`imo_nome_${imoId}`));
                     set(`man_lcg_imo_mat_${addedImoveis}`, d(`imo_matricula_${imoId}`) || d(`imo_mat_${imoId}`));
                     set(`man_lcg_imo_cid_${addedImoveis}`, cidUf);
                     set(`man_lcg_imo_posse_${addedImoveis}`, d(`imo_grau_posse_${imoId}`) || "100");
- 
+
+                    let currentAdded = addedImoveis; // Trava de escopo para o delay assíncrono
+                    
                     setTimeout(() => {
-                        let container = document.getElementById(`container_intervenientes_imo_${addedImoveis}`);
-                        if(container && d('par_tem_interveniente') === 'SIM') {
-                            let inpsNome = container.querySelectorAll('.inp-nome-interv');
-                            if (inpsNome.length > 0) {
-                                inpsNome[0].value = d('par_interveniente_nome');
-                                container.querySelectorAll('.inp-cpf-interv')[0].value = d('par_interveniente_cpf');
-                                let posseTit = parseFloat(d(`imo_grau_posse_${imoId}`) || 100);
-                                if(posseTit < 100) {
+                        let container = document.getElementById(`container_intervenientes_imo_${currentAdded}`);
+                        if(container) {
+                            let idxProp = 0;
+                            while (true) {
+                                let elNome = document.getElementById(`prop_nome_${imoId}_${idxProp}`);
+                                if (!elNome) break;
+                                
+                                let nVal = elNome.value.trim();
+                                let cVal = document.getElementById(`prop_cpf_${imoId}_${idxProp}`)?.value || "";
+                                let pVal = document.getElementById(`prop_posse_${imoId}_${idxProp}`)?.value || "";
+                                
+                                if (nVal) {
+                                    let inpsNome = container.querySelectorAll('.inp-nome-interv');
+                                    let inpsCpf = container.querySelectorAll('.inp-cpf-interv');
                                     let inpsPosse = container.querySelectorAll('.inp-posse-interv');
-                                    inpsPosse[0].value = 100 - posseTit; inpsPosse[0].dispatchEvent(new Event('input'));
+                                    
+                                    if (idxProp < inpsNome.length) {
+                                        inpsNome[idxProp].value = nVal;
+                                        if (inpsCpf[idxProp]) inpsCpf[idxProp].value = cVal;
+                                        if (pVal && inpsPosse[idxProp]) {
+                                            inpsPosse[idxProp].value = pVal;
+                                            inpsPosse[idxProp].dispatchEvent(new Event('input')); // Motor de Cascata
+                                        }
+                                    }
                                 }
+                                idxProp++;
                             }
                         }
-                    }, 100);
+                    }, 150);
                 }
             });
         }
         
-        if (addedImoveis === 0) adicionarImovelManualLCG();
-        set('man_lcg_id_end', d('par_id_end')); set('man_lcg_id_renda', d('par_id_renda')); set('man_lcg_ger_rel', d('par_gerente_rel'));
+        if (addedImoveis === 0) {
+            if(typeof adicionarImovelManualLCG === 'function') adicionarImovelManualLCG();
+        }
+        
+        set('man_lcg_id_end', d('par_id_end')); 
+        set('man_lcg_id_renda', d('par_id_renda')); 
+        set('man_lcg_ger_rel', d('par_gerente_rel'));
+        
     } catch(err) {
         console.error("Erro interno ao preencher LCG:", err);
     } finally {
         // O finally garante que o modal vai abrir SEMPRE
-        let m = document.getElementById('modal_manual_lcg'); if(m) m.style.display = 'flex';
+        let m = document.getElementById('modal_manual_lcg'); 
+        if(m) m.style.display = 'flex';
     }
 }
 
@@ -3842,6 +3901,9 @@ function acionarGeradorManual() {
         if(mGar) mGar.innerHTML = ""; contGarantiasInv = 0;
         let gIds = typeof garantiasRowsIds !== 'undefined' ? garantiasRowsIds : [];
         
+        // =========================================================
+        // MOTOR DE INJEÇÃO DE GARANTIAS E INTERVENIENTES (NOVO)
+        // =========================================================
         if (gIds.length > 0 && porte !== 'PRONAF A') {
             set('man_inv_tem_gar_real', 'SIM');
             document.getElementById('box_inv_garantias_reais').style.display = 'block';
@@ -3850,20 +3912,57 @@ function acionarGeradorManual() {
                 let imoId = d(`prop_garantia_imovel_${rowId}`);
                 if (imoId) {
                     adicionarGarantiaRealInv();
-                    set(`man_inv_gar_tipo_${contGarantiasInv}`, d(`prop_garantia_tipo_${rowId}`));
-                    set(`man_inv_gar_nome_${contGarantiasInv}`, d(`imo_nome_${imoId}`));
-                    set(`man_inv_gar_mat_${contGarantiasInv}`, d(`imo_matricula_${imoId}`) || d(`imo_mat_${imoId}`));
-                    set(`man_inv_gar_cid_${contGarantiasInv}`, d(`imo_cidade_${imoId}`) ? `${d(`imo_cidade_${imoId}`).split('-')[0].trim()} - ${d(`imo_uf_${imoId}`) || 'MA'}` : "");
-                    set(`man_inv_gar_posse_${contGarantiasInv}`, d(`imo_grau_posse_${imoId}`) || "100");
-                    set(`man_inv_gar_aval_${contGarantiasInv}`, d(`imo_valor_aval_${imoId}`));
-                    atualizarIntervenientesInv(contGarantiasInv);
+                    let currentGar = contGarantiasInv; // Trava de escopo
+                    set(`man_inv_gar_tipo_${currentGar}`, d(`prop_garantia_tipo_${rowId}`));
+                    set(`man_inv_gar_nome_${currentGar}`, d(`imo_nome_${imoId}`));
+                    set(`man_inv_gar_mat_${currentGar}`, d(`imo_matricula_${imoId}`) || d(`imo_mat_${imoId}`));
+                    set(`man_inv_gar_cid_${currentGar}`, d(`imo_cidade_${imoId}`) ? `${d(`imo_cidade_${imoId}`).split('-')[0].trim()} - ${d(`imo_uf_${imoId}`) || 'MA'}` : "");
+                    set(`man_inv_gar_posse_${currentGar}`, d(`imo_grau_posse_${imoId}`) || "100");
+                    set(`man_inv_gar_aval_${currentGar}`, d(`imo_valor_aval_${imoId}`));
+                    
+                    atualizarIntervenientesInv(currentGar); // Aciona a primeira caixa
+                    
+                    setTimeout(() => {
+                        let container = document.getElementById(`container_intervenientes_inv_gar_${currentGar}`);
+                        if(container) {
+                            let idxProp = 0;
+                            while (true) {
+                                let elNome = document.getElementById(`prop_nome_${imoId}_${idxProp}`);
+                                if (!elNome) break;
+                                
+                                let nVal = elNome.value.trim();
+                                let cVal = document.getElementById(`prop_cpf_${imoId}_${idxProp}`)?.value || "";
+                                let pVal = document.getElementById(`prop_posse_${imoId}_${idxProp}`)?.value || "";
+                                
+                                if (nVal) {
+                                    let inpsNome = container.querySelectorAll('.inp-nome-interv');
+                                    let inpsCpf = container.querySelectorAll('.inp-cpf-interv');
+                                    let inpsPosse = container.querySelectorAll('.inp-posse-interv');
+                                    
+                                    if (idxProp < inpsNome.length) {
+                                        inpsNome[idxProp].value = nVal;
+                                        if (inpsCpf[idxProp]) inpsCpf[idxProp].value = cVal;
+                                        if (pVal && inpsPosse[idxProp]) {
+                                            inpsPosse[idxProp].value = pVal;
+                                            inpsPosse[idxProp].dispatchEvent(new Event('input')); // Motor de Cascata
+                                        }
+                                    }
+                                }
+                                idxProp++;
+                            }
+                        }
+                    }, 150);
                 }
             });
         } else if (porte !== 'PRONAF A') { 
+            // TRAVA DE SEGURANÇA MANTIDA INTACTA
             set('man_inv_tem_gar_real', 'NÃO');
             document.getElementById('box_inv_garantias_reais').style.display = 'none';
         }
  
+        // =========================================================
+        // CÁLCULOS FINANCEIROS E SETTERS FINAIS (MANTIDOS INTACTOS)
+        // =========================================================
         let somaSaldo = 0;
         let somaComprometida = 0;
         let parseBR = (val) => { return parseFloat(val.toString().replace(/[^\d,]/g, '').replace(',', '.')) || 0; };
@@ -3880,6 +3979,7 @@ function acionarGeradorManual() {
         set('man_inv_ci_res', d('ci_titular')); set('man_inv_ci_just', d('ci_just_titular')); set('man_inv_ger_rel', d('par_gerente_rel'));
         
         if (typeof calcularFundoLiquidezManual === 'function') calcularFundoLiquidezManual();
+
     } catch(err) {
         console.error("Erro interno ao preencher INV:", err);
     } finally {
@@ -4005,7 +4105,7 @@ function acionarGeradorManual() {
                             containerInt.querySelectorAll('.row-interv').forEach(rowInt => {
                                 let iNome = rowInt.querySelector('.inp-nome-interv').value.toUpperCase().trim();
                                 let iCpf = rowInt.querySelector('.inp-cpf-interv').value.trim();
-                                if (iNome) intervLocal.push(`ao interveniente ${tipo === 'LCGH' ? 'hipotecante' : 'garantidor'} (${iNome} - CPF: ${iCpf})`);
+                                if (iNome) intervLocal.push(`ao interveniente ${tipo === 'LCGH' ? 'hipotecante' : 'garantidor'} ${iNome} - CPF: ${iCpf}`);
                             });
                         }
                         txtP = intervLocal.length > 0 ? `pertencente(s) ao proponente e ` + intervLocal.join(' e ') + "." : `pertencente(s) ao proponente e ao interveniente.`;
@@ -6645,7 +6745,7 @@ function processarGeradorSolicitacaoPlanta() {
 
  
 
-<div class="btn-container" style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;">
+<div id="botoes_acao_rodape" class="btn-container" style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;">
         <button class="btn-clear" onclick="localStorage.removeItem('notas_auxiliares_cliente'); window.location.reload()" style="font-size: 13px; padding: 10px 15px; white-space: nowrap;">LIMPAR TUDO</button>
         
         <div style="position: relative; display: inline-block;">
@@ -6666,14 +6766,31 @@ function processarGeradorSolicitacaoPlanta() {
     </div>
 
     <div id="box_output" style="display: none; margin-top: 20px; background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary-color); padding-bottom: 10px; margin-bottom: 10px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary-color); padding-bottom: 10px; margin-bottom: 10px; flex-wrap: wrap; gap: 10px;">
+        
+        <div style="display: flex; align-items: center;">
             <strong style="color: var(--primary-color); font-size: 15px;">📄 Resultados da Análise / Parecer</strong>
-            <button type="button" onclick="document.getElementById('box_output').style.display='none'" style="background: #fff0f0; color: #c62828; border: 1px solid #c62828; padding: 6px 12px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; transition: 0.2s;">
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 8px;">
+            
+            <button type="button" onclick="exportarParecer('txt')" style="background: #455a64; color: white; border: 1px solid #455a64; padding: 6px 12px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: bold; transition: 0.2s;" onmouseover="this.style.filter='brightness(0.9)'" onmouseout="this.style.filter='brightness(1)'">
+                📄 Exportar TXT
+            </button>
+            
+            <button type="button" onclick="exportarParecer('doc')" style="background: #1a73e8; color: white; border: 1px solid #1a73e8; padding: 6px 12px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: bold; transition: 0.2s;" onmouseover="this.style.filter='brightness(0.9)'" onmouseout="this.style.filter='brightness(1)'">
+                📝 Exportar Word
+            </button>
+
+            <button type="button" onclick="document.getElementById('box_output').style.display='none'" style="background: #fff0f0; color: #c62828; border: 1px solid #c62828; padding: 6px 12px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; transition: 0.2s;" onmouseover="this.style.filter='brightness(0.9)'" onmouseout="this.style.filter='brightness(1)'">
                 ❌ Fechar Painel
             </button>
+            
         </div>
-        <textarea id="output" class="auto-expand" oninput="this.dataset.editadoManualmente='true'; autoResize(this);" style="width: 100%; padding: 10px; border: none; background: transparent; font-family: monospace; font-size: 13px; resize: none; overflow: hidden; display: block; height: auto;"></textarea>
     </div>
+    
+    <textarea id="output" class="auto-expand" oninput="this.dataset.editadoManualmente='true'; autoResize(this);" style="width: 100%; padding: 10px; border: none; background: transparent; font-family: monospace; font-size: 13px; resize: none; overflow: hidden; display: block; height: auto;"></textarea>
+</div>
 </div>
 
 <div id="meuModal" class="modal-overlay">
@@ -8685,18 +8802,23 @@ function processarGeradorSolicitacaoPlanta() {
                     </div>
                     
                     <div class="rs-action-buttons">
-                        <input type="file" id="rs-file-kml" accept=".kml" class="rs-hidden">
-                        <input type="file" id="rs-file-csv" accept=".csv" class="rs-hidden">
-                        <input type="file" id="rs-file-excel" accept=".xls, .xlsx" class="rs-hidden">
+    <input type="file" id="rs-file-kml" accept=".kml" class="rs-hidden">
+    <input type="file" id="rs-file-csv" accept=".csv" class="rs-hidden">
+    <input type="file" id="rs-file-excel" accept=".xls, .xlsx" class="rs-hidden">
 
-                        <button id="rs-btn-verify" class="rs-btn rs-btn-primary" onclick="document.getElementById('rs-file-kml').click()" style="background-color:#004C27; color: #ffffff;">🗺️ Importar KML</button>
-                        <button id="rs-btn-extract" class="rs-btn rs-btn-outline">📊 Extrair Coordenadas</button>
-                        <button id="rs-btn-excel" class="rs-btn rs-btn-primary" onclick="document.getElementById('rs-file-excel').click()">📊 Importar Excel</button>
-                        <button id="rs-btn-extract-glebas" class="rs-btn rs-btn-outline">🚜 Extrair para TXT</button>
-                        <button id="rs-btn-csv" class="rs-btn rs-btn-primary" onclick="document.getElementById('rs-file-csv').click()">📑 Importar CSV</button>
-                        <button id="rs-btn-clear" class="rs-btn rs-btn-danger">🗑️ Nova Análise (LIMPAR)</button>
-                        <button id="rs-btn-new" class="rs-btn rs-btn-success rs-full-width">➕ Criar / Editar Manualmente</button>
-                    </div>
+    <button id="rs-btn-verify" class="rs-btn rs-btn-primary" onclick="document.getElementById('rs-file-kml').click()" style="background-color:#004C27; color: #ffffff;">🗺️ Importar e Corrigir KML</button>
+    <button id="rs-btn-extract" class="rs-btn rs-btn-outline">📊 Extrair Apenas Coordenadas</button>
+    
+    <button id="rs-btn-excel" class="rs-btn rs-btn-primary" onclick="document.getElementById('rs-file-excel').click()">📊 Importar Planilha (XLS / XLSX)</button>
+    <button id="rs-btn-extract-glebas" class="rs-btn rs-btn-outline">🚜 Extrair para GLEBAS (TXT)</button>
+    
+    <button id="rs-btn-csv" class="rs-btn rs-btn-primary" onclick="document.getElementById('rs-file-csv').click()">📑 Importar Planilha (CSV)</button>
+    <button id="rs-btn-extract-xls" class="rs-btn rs-btn-outline" style="border-left-color: #107c41; color: #107c41; font-weight: 700;">📈 EXCEL PLANILHA DE COORDENADAS</button>
+    
+    <button id="rs-btn-new" class="rs-btn rs-btn-success">➕ Criar / Editar Manualmente</button>
+    <button id="rs-btn-clear" class="rs-btn rs-btn-danger">🗑️ Limpar Tudo (Nova Análise)</button>
+    
+</div>
 
                     <hr class="rs-divider">
 
@@ -11161,10 +11283,10 @@ function getDadosFormulario() {
     
 async function salvarRascunho() {
     const dados = getDadosFormulario(); 
-    
-    // 🛠️ MUDANÇA AQUI: Captura as notas e INJETA no pacote de dados ANTES de fechar o arquivo
+
+    // 🎯 Captura o conteúdo HTML atual das notas e injeta no objeto 'dados'
     let notasHtml = document.getElementById('bloco_notas_cliente')?.innerHTML || "";
-    dados.notas_sidebar = notasHtml;
+    dados.notas_sidebar = notasHtml; // Esta chave 'notas_sidebar' será salva no seu JSON
 
     // Agora sim, o JSON é gerado com as notas inclusas!
     const jsonString = JSON.stringify(dados, null, 2); 
@@ -11298,6 +11420,23 @@ function carregarRascunho(event) {
                 }, 350);
             }
 
+            // 🎯 RESTAURAÇÃO DO BLOCO DE NOTAS DO CLIENTE
+    if (dados && dados.notas_sidebar !== undefined) {
+        let blocoNotas = document.getElementById('bloco_notas_cliente');
+        if (blocoNotas) {
+            blocoNotas.innerHTML = dados.notas_sidebar;
+            // Atualiza o localStorage para manter a persistência temporária
+            localStorage.setItem('notas_auxiliares_cliente', dados.notas_sidebar); 
+        }
+    } else {
+        // Se o JSON carregado não tiver notas, limpa o painel
+        let blocoNotas = document.getElementById('bloco_notas_cliente');
+        if (blocoNotas) blocoNotas.innerHTML = '';
+        localStorage.removeItem('notas_auxiliares_cliente');
+    }
+
+
+
 // RESTAURAÇÃO DAS LISTAS DINÂMICAS DA CONSOLIDADA RURAL PF
                 if(dados._html_man_con_ops) {
                     let c = document.getElementById('man_con_container_ops');
@@ -11319,6 +11458,7 @@ function carregarRascunho(event) {
                 if (dados._contProagroCon !== undefined) contProagroCon = dados._contProagroCon;
                 if (dados._contCeiCon !== undefined) contCeiCon = dados._contCeiCon;
                 if (dados._contImoBenCon !== undefined) contImoBenCon = dados._contImoBenCon;
+                
 
             // A MÁGICA DE PREENCHIMENTO OCORRE AQUI
             for (const id in dados) {
@@ -11402,6 +11542,11 @@ function carregarRascunho(event) {
                 let blocoNotas = document.getElementById('bloco_notas_cliente');
                 if (blocoNotas) blocoNotas.innerHTML = '';
                 localStorage.removeItem('notas_auxiliares_cliente');
+            }
+
+            // [AQUI VEM O GATILHO QUE CRIAMOS PARA AS POSSES]
+            if (typeof sincronizarPosseAposImportacao === 'function') {
+                sincronizarPosseAposImportacao();
             }
             
             // SE CHEGAR AQUI SEM QUEBRAR, A LEITURA FOI UM SUCESSO!
@@ -11487,10 +11632,34 @@ function converterNumeroParaExtenso(num) {
 }
 
 // =========================================================================
-// FUNCTION 2: VALIDADOR E ABRIDOR DO DIÁLOGO COMPLEMENTAR
+// MOTOR INJETOR DINÂMICO PARA INTERVENIENTES NO MODAL COMPLEMENTAR (BOX MODEL CORRIGIDO)
+// =========================================================================
+function adicionarIntervenienteModalComplet(nome = '', cpf = '') {
+    let container = document.getElementById('par_container_intervenientes');
+    if (!container) return;
+    let uid = 'par_int_' + Date.now() + Math.floor(Math.random() * 1000);
+    
+    // Injeção de box-sizing: border-box para evitar transbordo (overflow) do container pai
+    let html = `
+        <div class="row-flex linha-interv-modal" id="box_${uid}" style="gap: 15px; background: #f8fafc; padding: 15px; border-radius: 6px; border: 1px solid #cbd5e1; align-items: flex-end; margin-bottom: 5px; width: 100%; box-sizing: border-box;">
+            <div class="form-group" style="flex: 2; margin-bottom: 0;">
+                <label style="font-size: 11px; font-weight: bold; color: #64748b; margin-bottom: 4px; display: block;">Nome do Interveniente</label>
+                <input type="text" class="par-int-nome" value="${nome}" placeholder="Nome Completo" style="width: 100%; box-sizing: border-box; border: 1px solid #cbd5e1; padding: 8px; border-radius: 4px; font-size: 12px;">
+            </div>
+            <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                <label style="font-size: 11px; font-weight: bold; color: #64748b; margin-bottom: 4px; display: block;">CPF / CNPJ</label>
+                <input type="text" class="par-int-cpf" value="${cpf}" placeholder="000.000.000-00" oninput="if(typeof mascaraCPF === 'function') mascaraCPF(this)" maxlength="14" style="width: 100%; box-sizing: border-box; border: 1px solid #cbd5e1; padding: 8px; border-radius: 4px; font-size: 12px;">
+            </div>
+            <button type="button" onclick="document.getElementById('box_${uid}').remove()" style="background: #ef4444; color: #fff; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; height: 35px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; transition: background 0.2s; font-size: 12px;">❌</button>
+        </div>
+    `;
+    container.insertAdjacentHTML('beforeend', html);
+}
+
+// =========================================================================
+// FUNCTION 2: VALIDADOR E ABRIDOR DO DIÁLOGO COMPLEMENTAR (BLINDADA)
 // =========================================================================
 function gerarParecer(tipoParecer) {
-    // Trava de segurança para os outros botões do menu que ainda vamos estruturar futuramente
     if (tipoParecer && tipoParecer !== 'gerencial') {
         alert("O Parecer " + tipoParecer.toUpperCase() + " ainda será mapeado. Por favor, utilize o Parecer Gerencial.");
         return;
@@ -11508,7 +11677,6 @@ function gerarParecer(tipoParecer) {
         return; 
     }
     
-    // Predição estética automática de tratamento baseado no nome do titular
     let nome = document.getElementById('nome_titular')?.value || "";
     let primeiroNome = nome.split(' ')[0].toLowerCase();
     let campoTrat = document.getElementById('par_tratamento');
@@ -11516,43 +11684,28 @@ function gerarParecer(tipoParecer) {
         campoTrat.value = primeiroNome.endsWith('a') ? "A Sr.ª" : "O Sr.";
     }
     
-    // EXIBIÇÃO DINÂMICA DOS CAMPOS INTERNOS DO QUESTIONÁRIO
     let blocoLCG = document.getElementById('row_complementares_lcg');
     let blocoInvCust = document.getElementById('row_complementares_inv_cust');
-    
-    // VERIFICAÇÃO DE PORTE
     let porteCliente = (document.getElementById('porte_titular')?.value || document.getElementById('porte_cliente')?.value || document.getElementById('proj_porte')?.value || "").toUpperCase();
-
-    // Lista com os IDs de todas as perguntas que DEVEM SUMIR quando for PRONAF A
+    
     let camposGerais = [
         'par_tratamento', 'par_segmento', 'par_ano_inicio', 'par_adimplencia', 
-        'par_atrasos', 'par_id_end', 'par_id_renda', 'par_tem_interveniente', 
-        'par_interveniente_nome', 'par_interveniente_cpf'
+        'par_atrasos', 'par_id_end', 'par_id_renda', 'par_tem_interveniente'
     ];
-
+    
     if (porteCliente === 'PRONAF A') {
-        // 1. Oculta todos os campos genéricos listados acima
         camposGerais.forEach(id => {
             let el = document.getElementById(id);
-            if (el && el.closest('.form-group')) {
-                el.closest('.form-group').style.display = 'none';
-            }
+            if (el && el.closest('.form-group')) el.closest('.form-group').style.display = 'none';
         });
-        
-        // 2. Oculta as perguntas complementares de LCGH/LCGA e Inv/Cust
         if (blocoLCG) blocoLCG.style.display = 'none';
         if (blocoInvCust) blocoInvCust.style.display = 'none';
-
     } else {
-        // 1. Restaura (Mostra) todos os campos genéricos para os outros portes
         camposGerais.forEach(id => {
             let el = document.getElementById(id);
-            if (el && el.closest('.form-group')) {
-                el.closest('.form-group').style.display = 'flex';
-            }
+            if (el && el.closest('.form-group')) el.closest('.form-group').style.display = 'flex';
         });
 
-        // 2. Lógica tradicional de mostrar perguntas de acordo com o Tipo
         if (tipoProposta === 'LCGA' || tipoProposta === 'LCGH') {
             if (blocoLCG) blocoLCG.style.display = 'flex';
             if (blocoInvCust) blocoInvCust.style.display = 'none';
@@ -11561,7 +11714,78 @@ function gerarParecer(tipoParecer) {
             if (blocoInvCust) blocoInvCust.style.display = 'flex';
         }
     }
+
+    // =========================================================================
+    // PARSER INTELIGENTE DE CAPTURA EM LOTE PARA O MODAL COMPLEMENTAR
+    // =========================================================================
+    let distinctInterv = [];
+    let addedKeys = new Set();
+
+    const registrarIntervenienteUnico = (n, c) => {
+        let nomeLimpo = (n || "").trim();
+        let cpfLimpo = (c || "").trim();
+        if (nomeLimpo !== "") {
+            let chaveUnica = cpfLimpo ? cpfLimpo : nomeLimpo.toLowerCase();
+            if (!addedKeys.has(chaveUnica)) {
+                addedKeys.add(chaveUnica);
+                distinctInterv.push({ nome: nomeLimpo, cpf: cpfLimpo });
+            }
+        }
+    };
+
+    let gIds = (typeof garantiasRowsIds !== 'undefined' && Array.isArray(garantiasRowsIds)) ? garantiasRowsIds : ((typeof projGarantiasIds !== 'undefined' && Array.isArray(projGarantiasIds)) ? projGarantiasIds : []);
     
+    // 1. Varre via Garantias Ativas
+    gIds.forEach(rowId => {
+        let imoSelect = document.getElementById(`prop_g_imovel_${rowId}`) || document.getElementById(`prop_garantia_imovel_${rowId}`) || document.getElementById(`proj_garantia_imovel_${rowId}`);
+        let imoId = imoSelect?.value;
+        if (imoId) {
+            let idxProp = 0;
+            while (true) {
+                let elNome = document.getElementById(`prop_nome_${imoId}_${idxProp}`);
+                let elCpf = document.getElementById(`prop_cpf_${imoId}_${idxProp}`);
+                if (!elNome) break;
+                registrarIntervenienteUnico(elNome.value, elCpf ? elCpf.value : "");
+                idxProp++;
+            }
+        }
+    });
+
+    // 2. Fallback geral por imóveis da tela
+    if (distinctInterv.length === 0 && typeof imoveisIds !== 'undefined' && Array.isArray(imoveisIds)) {
+        imoveisIds.forEach(imoId => {
+            let idxProp = 0;
+            while (true) {
+                let elNome = document.getElementById(`prop_nome_${imoId}_${idxProp}`);
+                let elCpf = document.getElementById(`prop_cpf_${imoId}_${idxProp}`);
+                if (!elNome) break;
+                registrarIntervenienteUnico(elNome.value, elCpf ? elCpf.value : "");
+                idxProp++;
+            }
+        });
+    }
+
+    // 3. Renderização Dinâmica e Alimentação das Linhas do Modal (LAYOUT CORRIGIDO)
+    let selInterv = document.getElementById('par_tem_interveniente');
+    let boxBlocoInterv = document.getElementById('par_container_bloco_intervenientes'); 
+    let containerModalInt = document.getElementById('par_container_intervenientes');
+
+    if (selInterv && boxBlocoInterv && containerModalInt) {
+        containerModalInt.innerHTML = ""; // Faxina estrutural preventiva
+        if (distinctInterv.length > 0) {
+            selInterv.value = 'SIM';
+            boxBlocoInterv.style.display = 'block'; 
+            distinctInterv.forEach(int => {
+                if (typeof adicionarIntervenienteModalComplet === 'function') {
+                    adicionarIntervenienteModalComplet(int.nome, int.cpf);
+                }
+            });
+        } else {
+            selInterv.value = 'NÃO';
+            boxBlocoInterv.style.display = 'none';
+        }
+    }
+
     let modal = document.getElementById('modal_parecer_gerencial');
     if (modal) modal.style.display = 'flex';
 }
@@ -11587,8 +11811,19 @@ function processarGeracaoParecer(isSilent = false) {
     let pIdEnd = d('par_id_end') || "Não informado";
     let pIdRen = d('par_id_renda') || "Não informado";
     let pTemInterv = d('par_tem_interveniente');
-    let pInterNome = d('par_interveniente_nome').toUpperCase();
-    let pInterCpf = d('par_interveniente_cpf');
+    let listIntervModal = [];
+    if (pTemInterv === 'SIM') {
+        let containerM = document.getElementById('par_container_intervenientes');
+        if (containerM) {
+            containerM.querySelectorAll('.linha-interv-modal').forEach(linha => {
+                let nInp = linha.querySelector('.par-int-nome');
+                let cInp = linha.querySelector('.par-int-cpf');
+                if (nInp && nInp.value.trim() !== "") {
+                    listIntervModal.push({ nome: nInp.value.trim(), cpf: cInp ? cInp.value.trim() : "" });
+                }
+            });
+        }
+    }
 
     // NOVAS VARIÁVEIS: GERENTES E ASSINATURAS "E.E."
     let pGerRel = d('par_gerente_rel') || "__________________________";
@@ -11813,47 +12048,98 @@ function processarGeracaoParecer(isSilent = false) {
             let garTipoDominante = "LCGA"; 
             let temGarantiaReal = false;
 
-            if (rowsGarantiasIds && rowsGarantiasIds.length > 0) {
-                rowsGarantiasIds.forEach((rowId, index) => {
-                    let imoSelect = document.getElementById(`prop_g_imovel_${rowId}`) || document.getElementById(`prop_garantia_imovel_${rowId}`) || document.getElementById(`proj_garantia_imovel_${rowId}`);
-                    let tipoSelect = document.getElementById(`prop_g_tipo_${rowId}`) || document.getElementById(`prop_garantia_tipo_${rowId}`) || document.getElementById(`proj_garantia_tipo_${rowId}`);
-                    
-                    let imoId = imoSelect?.value || "";
-                    let garTipo = tipoSelect?.value || "LCGA";
-                    
-                    if (imoId) {
-                        temGarantiaReal = true;
-                        if (index === 0) garTipoDominante = garTipo; 
-                        
-                        // REGRA 7: Puxar o valor ALOCADO na aba de Garantias e não o valor total da fazenda
-                        let inputValorAlocado = document.getElementById(`prop_g_valor_${rowId}`) || document.getElementById(`prop_garantia_valor_${rowId}`) || document.getElementById(`proj_garantia_valor_${rowId}`);
-                        let valAlocadoStr = inputValorAlocado?.value || "0";
-                        
-                        // Se por algum motivo o valor alocado vier zerado, usamos a avaliação como fallback de segurança
-                        let valAvalStr = document.getElementById(`imo_valor_aval_${imoId}`)?.value || "0";
-                        let valorGarantiaEfetiva = parseBR(valAlocadoStr);
-                        if (valorGarantiaEfetiva === 0) valorGarantiaEfetiva = parseBR(valAvalStr);
-                        
-                        valorAvaliacaoTotal += valorGarantiaEfetiva;
+            // ENGENHARIA DE CÁLCULO DE GARANTIAS REAIS E MARGENS
+    // ENGENHARIA DE CÁLCULO DE GARANTIAS REAIS E MARGENS
+    if (rowsGarantiasIds && rowsGarantiasIds.length > 0) {
+        rowsGarantiasIds.forEach((rowId, index) => {
+            let imoSelect = document.getElementById(`prop_g_imovel_${rowId}`) || document.getElementById(`prop_garantia_imovel_${rowId}`) || document.getElementById(`proj_garantia_imovel_${rowId}`);
+            let tipoSelect = document.getElementById(`prop_g_tipo_${rowId}`) || document.getElementById(`prop_garantia_tipo_${rowId}`) || document.getElementById(`proj_garantia_tipo_${rowId}`);
+            
+            let imoId = imoSelect?.value || "";
+            let garTipo = tipoSelect?.value || "LCGA";
+            
+            if (imoId) {
+                temGarantiaReal = true;
+                if (index === 0) garTipoDominante = garTipo; 
+                
+                let inputValorAlocado = document.getElementById(`prop_g_valor_${rowId}`) || document.getElementById(`prop_garantia_valor_${rowId}`) || document.getElementById(`proj_garantia_valor_${rowId}`);
+                let valAlocadoStr = inputValorAlocado?.value || "0";
+                
+                let valAvalStr = document.getElementById(`imo_valor_aval_${imoId}`)?.value || "0";
+                let valorGarantiaEfetiva = parseBR(valAlocadoStr);
+                if (valorGarantiaEfetiva === 0) valorGarantiaEfetiva = parseBR(valAvalStr);
+                
+                valorAvaliacaoTotal += valorGarantiaEfetiva;
 
-                        let n = (document.getElementById(`imo_nome_${imoId}`)?.value || "").toUpperCase().trim();
-                        let m = (document.getElementById(`imo_matricula_${imoId}`) || document.getElementById(`imo_mat_${imoId}`))?.value || "";
-                        let c = (document.getElementById(`imo_cidade_${imoId}`)?.value || "").split('-')[0].trim().toUpperCase();
-                        let u = (document.getElementById(`imo_uf_${imoId}`)?.value || "MA").toUpperCase().trim();
-                        let p = (document.getElementById(`imo_grau_posse_${imoId}`)?.value || "100").replace('%', '').trim();
-                        let valPosse = parseFloat(p) || 100;
-                        
-                        let termoGarantia = (garTipo === 'LCGH') ? "Limite de Crédito por Garantia de Hipoteca (LCGH)" : "Alienação Fiduciária de bens imóveis (LCGA)";
-                        let localidade = c ? `, situada no município de ${c} – ${u}` : "";
-                        
-                        let pertenceTexto = (valPosse < 100 || (typeof pTemInterv !== 'undefined' && pTemInterv === 'SIM')) ? 
-                            `pertencente(s) ao proponente e ao interveniente hipotecante (${(typeof pInterNome !== 'undefined' ? pInterNome : '[Nome]')}).` : 
-                            "pertencente (s) ao proponente.";
-                        
-                        linhasGarantiasProposta.push(`${termoGarantia} do (s) imóvel (is): ${n}, Matrícula n° ${m}${localidade}, ${pertenceTexto}`);
+                let n = (document.getElementById(`imo_nome_${imoId}`)?.value || "").toUpperCase().trim();
+                let m = (document.getElementById(`imo_matricula_${imoId}`) || document.getElementById(`imo_mat_${imoId}`))?.value || "";
+                let c = (document.getElementById(`imo_cidade_${imoId}`)?.value || "").split('-')[0].trim().toUpperCase();
+                let u = (document.getElementById(`imo_uf_${imoId}`)?.value || "MA").toUpperCase().trim();
+                let p = (document.getElementById(`imo_grau_posse_${imoId}`)?.value || "100").replace('%', '').trim();
+                let valPosse = parseFloat(p) || 100;
+                
+                let termoGarantia = (garTipo === 'LCGH') ? "Limite de Crédito por Garantia de Hipoteca (LCGH)" : "Alienação Fiduciária de bens imóveis (LCGA)";
+                let localidade = c ? `, situada no município de ${c} – ${u}` : "";
+                
+                // --- PROCESSADOR INTEGRADO DE INTERVENIENTES MÚLTIPLOS (MODAL + CARD) ---
+                let pertenceTexto = "pertencente (s) ao proponente.";
+                let listInterv = [];
+                let idxProp = 0;
+                
+                // 1. Tenta varrer os dados vindos direto do card do Imóvel correspondente
+                while (true) {
+                    let elNome = document.getElementById(`prop_nome_${imoId}_${idxProp}`);
+                    let elCpf = document.getElementById(`prop_cpf_${imoId}_${idxProp}`);
+                    if (!elNome) break;
+                    
+                    let nomeI = elNome.value.trim();
+                    let cpfI = elCpf ? elCpf.value.trim() : "";
+                    if (nomeI) {
+                        listInterv.push({ nome: nomeI, cpf: cpfI });
                     }
-                });
+                    idxProp++;
+                }
+
+                // 2. Fallback de Sobrecarga Manual: Se o card estiver vazio mas o usuário preencheu/editou o lote no Modal
+                if (listInterv.length === 0 && (valPosse < 100 || pTemInterv === 'SIM') && listIntervModal.length > 0) {
+                    listInterv = [...listIntervModal];
+                }
+
+                if (listInterv.length > 0) {
+                    const formatarNomeInterv = (str) => {
+                        if (!str) return "";
+                        const preps = ["de", "da", "do", "dos", "das", "e"];
+                        return str.trim().toLowerCase().split(/\s+/).map((w, i) => 
+                            (i > 0 && preps.includes(w)) ? w : w.charAt(0).toUpperCase() + w.slice(1)
+                        ).join(" ");
+                    };
+
+                    let arrTextoInterv = listInterv.map(int => {
+                        let txt = formatarNomeInterv(int.nome);
+                        if (int.cpf && int.cpf.trim() !== "") {
+                            txt += `, CPF: ${int.cpf.trim()}`;
+                        }
+                        return txt;
+                    });
+
+                    let rotuloInterv = (listInterv.length > 1) ? "aos intervenientes hipotecantes" : "ao interveniente hipotecante";
+                    
+                    let textoListaFinal = "";
+                    if (arrTextoInterv.length === 1) {
+                        textoListaFinal = arrTextoInterv[0];
+                    } else {
+                        let ultimo = arrTextoInterv.pop();
+                        textoListaFinal = arrTextoInterv.join(', ') + " e " + ultimo;
+                    }
+
+                    pertenceTexto = `pertencente(s) ao proponente e ${rotuloInterv} ${textoListaFinal}.`;
+                }
+                // ---------------------------------------------------------
+                
+                linhasGarantiasProposta.push(`${termoGarantia} do (s) imóvel (is): ${n}, Matrícula n° ${m}${localidade}, ${pertenceTexto}`);
             }
+        });
+    }
 
             // 1. ISOLAMENTO DO IMÓVEL: Captura os imóveis usados como garantia nesta proposta
             let imoveisVinculadosAoParecer = [];
@@ -13998,12 +14284,42 @@ function criarMenuLateralAbas() {
                     if (overlay) overlay.style.display = 'none';
                 }
                 window.scrollTo({ top: 0, behavior: 'smooth' });
-            };
+                
+                // ==========================================================
+                // 7. MÁGICA DA VISIBILIDADE DOS BOTÕES DE AÇÃO (NOVO)
+                // ==========================================================
+                let containerBotoes = document.getElementById('botoes_acao_rodape');
+                if (containerBotoes) {
+                    if (textoLimpo === 'PAINEL GERENCIAL' || textoLimpo === 'LINKS PARA CONSULTAS') {
+                        containerBotoes.style.display = 'none';
+                    } else {
+                        containerBotoes.style.display = 'flex'; 
+                    }
+                }
+            }; // <--- FECHA O btn.onclick AQUI
+            
             nav.appendChild(btn);
         }
     });
 
     document.body.appendChild(nav);
+
+    // ==========================================================
+    // 8. VERIFICAÇÃO INICIAL (QUANDO A PÁGINA CARREGA)
+    // ==========================================================
+    let abaInicial = nav.querySelector('button.active');
+    if (abaInicial) {
+        let textoInicial = abaInicial.innerText.trim();
+        let containerBotoes = document.getElementById('botoes_acao_rodape');
+        if (containerBotoes) {
+            if (textoInicial === 'PAINEL GERENCIAL' || textoInicial === 'LINKS PARA CONSULTAS') {
+                containerBotoes.style.display = 'none';
+            } else {
+                containerBotoes.style.display = 'flex';
+            }
+        }
+    }
+
 }
 // =========================================================================
 // MOTOR DOS IMÓVEIS BENEFICIADOS COM O PROJETO
@@ -18064,6 +18380,66 @@ function confirmarSocioAvulso() {
     reconstruirBlocosSocio();
 }
 
+// =========================================================================
+// EXPORTAÇÃO DE PARECER (TXT e WORD)
+// =========================================================================
+
+function exportarParecer(formato) {
+    // Aponta direto para o ID da sua textarea
+    const campo = document.getElementById('output');
+    
+    if (!campo || !campo.value) {
+        alert("O campo de parecer está vazio ou não foi encontrado!");
+        return;
+    }
+
+    // Pega o texto puro digitado/gerado na caixa
+    let textoPuro = campo.value;
+
+    if (formato === 'txt') {
+        // Exporta nativamente mantendo as quebras de linha
+        let blob = new Blob([textoPuro], { type: 'text/plain;charset=utf-8' });
+        let link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'Parecer_Analise.txt';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+    } else if (formato === 'doc') {
+        // MÁGICA: Para o Word respeitar o espaçamento da textarea, trocamos os "Enters" (\n) por quebras de linha do Word (<br>)
+        let textoFormatado = textoPuro.replace(/\n/g, '<br>');
+        
+        let htmlParaWord = `
+            <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+            <head>
+                <meta charset='utf-8'>
+                <title>Parecer de Análise</title>
+                <style>
+                    body {
+                        font-family: Arial, sans-serif;
+                        font-size: 11pt;
+                        line-height: 1.5;
+                    }
+                </style>
+            </head>
+            <body>
+                ${textoFormatado}
+            </body>
+            </html>
+        `;
+
+        // O '\ufeff' (BOM) garante que acentuações (ç, ã, é) funcionem perfeitamente no Word
+        let blob = new Blob(['\ufeff', htmlParaWord], { type: 'application/msword' });
+        let link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'Parecer_Analise.doc';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+}
+
 
 
 </script>
@@ -18125,26 +18501,26 @@ function confirmarSocioAvulso() {
             </div>
 
             <div id="row_complementares_inv_cust" style="display: none; flex-direction: column; gap: 15px; margin-bottom: 15px; background: #f8fafc; padding: 15px; border-radius: 6px; border: 1px solid #e2e8f0;">
-                <div class="form-group">
+                <div class="form-group" style="margin-bottom: 0;">
                     <label>Possui Interveniente Hipotecante?</label>
-                    <select id="par_tem_interveniente" onchange="document.getElementById('box_dados_interveniente').style.display = (this.value === 'SIM' ? 'block' : 'none')">
+                    <select id="par_tem_interveniente" style="width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px;" onchange="document.getElementById('par_container_bloco_intervenientes').style.display = (this.value === 'SIM' ? 'block' : 'none'); if(this.value === 'SIM' && document.getElementById('par_container_intervenientes').children.length === 0) adicionarIntervenienteModalComplet('', '');">
                         <option value="NÃO">Não</option>
                         <option value="SIM">Sim</option>
                     </select>
                 </div>
-                <div id="box_dados_interveniente" style="display: none;">
-                    <div class="row-flex">
-                        <div class="form-group" style="flex: 2;">
-                            <label>Nome do Interveniente</label>
-                            <input type="text" id="par_interveniente_nome" placeholder="Nome Completo">
-                        </div>
-                        <div class="form-group" style="flex: 1;">
-                            <label>CPF do Interveniente</label>
-                            <input type="text" id="par_interveniente_cpf" placeholder="000.000.000-00">
-                        </div>
+
+                <div id="par_container_bloco_intervenientes" style="display: none; margin-top: 15px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
+                    
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #f1f5f9;">
+                        <h4 style="margin: 0; font-size: 13px; font-weight: bold; color: #475569;">Intervenientes Hipotecantes (Múltiplos)</h4>
+                        <button type="button" onclick="adicionarIntervenienteModalComplet('', '')" style="background: var(--primary-color); color: #fff; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s; display: flex; align-items: center; gap: 6px;">
+    ➕ Adicionar Interveniente
+</button>
                     </div>
+
+                    <div id="par_container_intervenientes" style="display: flex; flex-direction: column; gap: 10px;">
+                        </div>
                 </div>
-            </div>
 
             <div class="grid" style="margin-top: 15px;">
             <div class="form-group">
@@ -19540,6 +19916,19 @@ function calcularOutrosProprietarios(idImovel, indiceEditado = -1) {
     }
 }
 
+// =========================================================================
+// ACIONADOR FORÇADO DE CASCATA PARA IMPORTAÇÃO JSON
+// =========================================================================
+function sincronizarPosseAposImportacao() {
+    if (typeof imoveisIds !== 'undefined' && Array.isArray(imoveisIds)) {
+        imoveisIds.forEach(idImovel => {
+            if (typeof calcularOutrosProprietarios === 'function') {
+                calcularOutrosProprietarios(idImovel, -1);
+            }
+        });
+    }
+}
+
 // Função para abrir o painel KML e recalcular o mapa
 function abrirVerificadorKML() {
     document.getElementById('modal_kml_geodesico').style.display = 'flex';
@@ -19580,6 +19969,39 @@ function fecharVerificadorKML() {
 </script>
 
 <script>
+
+    // Função Universal Assíncrona para Forçar o Prompt "Salvar Como" do Windows
+async function rsSalvarArquivoComPrompt(conteudo, nomeSugerido, tipoMime, extensoes) {
+    if ('showSaveFilePicker' in window) {
+        try {
+            const options = {
+                suggestedName: nomeSugerido,
+                types: [{
+                    description: 'Arquivos do Projeto Geodésico',
+                    accept: { [tipoMime]: extensoes }
+                }]
+            };
+            const handle = await window.showSaveFilePicker(options);
+            const writable = await handle.createWritable();
+            await writable.write(conteudo);
+            await writable.close();
+            return true;
+        } catch (err) {
+            if (err.name !== 'AbortError') {
+                console.error("Erro ao salvar arquivo via API:", err);
+            } else {
+                return false; // Operação cancelada pelo usuário na caixa de diálogo
+            }
+        }
+    }
+    
+    // Fallback de contingência para navegadores sem suporte à File System API
+    const blob = conteudo instanceof Blob ? conteudo : new Blob([conteudo], { type: tipoMime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = nomeSugerido; a.click();
+    URL.revokeObjectURL(url);
+}
 
 // =========================================================================
 // MOTOR DO VERIFICADOR KML - INTEGRAÇÃO PRINCIPAL
@@ -19791,13 +20213,11 @@ const KML_TOOL = {
         });
 
         // Botão: Baixar Arquivo TXT a partir do Modal (respeitando se o usuário editou ali dentro)
-        document.getElementById('rs-btn-modal-download').addEventListener('click', () => {
-            const finalContent = document.getElementById('rs-export-textarea').value;
-            const url = URL.createObjectURL(new Blob([finalContent], {type: "text/plain;charset=utf-8"}));
-            const a = document.createElement('a');
-            a.href = url; a.download = rsCurrentExportName; a.click();
-            URL.revokeObjectURL(url);
-        });
+        document.getElementById('rs-btn-modal-download').addEventListener('click', async () => {
+    const finalContent = document.getElementById('rs-export-textarea').value;
+    // Dispara a caixa do Windows pedindo caminho de destino para o arquivo TXT processado
+    await rsSalvarArquivoComPrompt(finalContent, rsCurrentExportName, 'text/plain', ['.txt']);
+});
 
         // =========================================================================
         // BOTÃO 1: EXTRAIR PARA GLEBAS (TXT)
@@ -20370,46 +20790,44 @@ const KML_TOOL = {
         });
 
         // DOWNLOADS DO ZERO COM AUDITORIA GEOMÉTRICA AUTOMÁTICA
-        document.getElementById('rs-btn-download-new').addEventListener('click', () => {
-            let kmlContent = `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n  <Document>\n    <name>PROJETO RURAL</name> `;
-            
-            // =========================================================================
-            // AUDITORIA FINAL: GARANTE QUE TODOS OS POLÍGONOS ESTEJAM FECHADOS ANTES DE SALVAR
-            // =========================================================================
-            let fixedAuto = false;
-            Object.keys(rsGlebasData).forEach(gleba => {
-                let coords = rsGlebasData[gleba];
-                if (coords && coords.length >= 3) {
-                    let first = coords[0];
-                    let last = coords[coords.length - 1];
-                    // Se o primeiro ponto for diferente do último, ele fecha o polígono aqui na memória
-                    if (first[0] !== last[0] || first[1] !== last[1]) {
-                        coords.push([first[0], first[1], first[2] || 0.0]);
-                        fixedAuto = true;
-                    }
-                }
-            });
-
-            if (fixedAuto) {
-                alert("🔧 O sistema detectou polígonos abertos e os fechou automaticamente para o download.");
-                Object.keys(rsGlebasData).forEach(k => rsRedrawPolygon(k));
-                if (rsActiveGlebaEdit) rsSyncTextAndOverlay(rsActiveGlebaEdit);
+document.getElementById('rs-btn-download-new').addEventListener('click', async () => {
+    let kmlContent = `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n  <Document>\n    <name>PROJETO RURAL</name> `;
+    
+    // =========================================================================
+    // AUDITORIA FINAL: GARANTE QUE TODOS OS POLÍGONOS ESTEJAM FECHADOS ANTES DE SALVAR
+    // =========================================================================
+    let fixedAuto = false;
+    Object.keys(rsGlebasData).forEach(gleba => {
+        let coords = rsGlebasData[gleba];
+        if (coords && coords.length >= 3) {
+            let first = coords[0];
+            let last = coords[coords.length - 1];
+            // Se o primeiro ponto for diferente do último, ele fecha o polígono aqui na memória
+            if (first[0] !== last[0] || first[1] !== last[1]) {
+                coords.push([first[0], first[1], first[2] || 0.0]);
+                fixedAuto = true;
             }
-            // =========================================================================
+        }
+    });
 
-            Object.keys(rsGlebasData).forEach(gleba => {
-                if (rsGlebasData[gleba].length > 0) {
-                    let coordsStr = rsGlebasData[gleba].map(c => `${c[1]},${c[0]},${c[2]}`).join(" ");
-                    kmlContent += `\n    <Placemark>\n      <name>${gleba.toUpperCase()}</name>\n      <Polygon>\n        <tessellate>1</tessellate>\n        <outerBoundaryIs>\n          <LinearRing>\n            <coordinates>${coordsStr}</coordinates>\n          </LinearRing>\n        </outerBoundaryIs>\n      </Polygon>\n    </Placemark>`;
-                }
-            });
-            kmlContent += `\n  </Document>\n</kml>`;
-            
-            const url = URL.createObjectURL(new Blob([kmlContent], {type: "application/vnd.google-earth.kml+xml"}));
-            const a = document.createElement('a');
-            a.href = url; a.download = `NOVO_PROJETO.kml`; a.click();
-            URL.revokeObjectURL(url);
-        });
+    if (fixedAuto) {
+        alert("🔧 O sistema detectou polígonos abertos e os fechou automaticamente para o download.");
+        Object.keys(rsGlebasData).forEach(k => rsRedrawPolygon(k));
+        if (rsActiveGlebaEdit) rsSyncTextAndOverlay(rsActiveGlebaEdit);
+    }
+    // =========================================================================
+
+    Object.keys(rsGlebasData).forEach(gleba => {
+        if (rsGlebasData[gleba].length > 0) {
+            let coordsStr = rsGlebasData[gleba].map(c => `${c[1]},${c[0]},${c[2]}`).join(" ");
+            kmlContent += `\n    <Placemark>\n      <name>${gleba.toUpperCase()}</name>\n      <Polygon>\n        <tessellate>1</tessellate>\n        <outerBoundaryIs>\n          <LinearRing>\n            <coordinates>${coordsStr}</coordinates>\n          </LinearRing>\n        </outerBoundaryIs>\n      </Polygon>\n    </Placemark>`;
+        }
+    });
+    kmlContent += `\n  </Document>\n</kml>`;
+    
+    // Dispara a caixa do Windows pedindo caminho de destino para salvar o mapa KML finalizado
+    await rsSalvarArquivoComPrompt(kmlContent, "NOVO_PROJETO.kml", 'application/vnd.google-earth.kml+xml', ['.kml']);
+});
 
         // IMPORTAÇÃO DE PLANILHA CSV COM DE-PARA DINÂMICO DE ALTURA
         document.getElementById('rs-file-csv').addEventListener('change', async function(e) {
@@ -21030,6 +21448,37 @@ const KML_TOOL = {
         // Dispara o destaque ao clicar ou mover com setas
         coordsInput.addEventListener('keyup', rsHighlightMarkerFromText);
         coordsInput.addEventListener('click', rsHighlightMarkerFromText);
+
+        // =========================================================================
+// MOTOR DE EXPORTAÇÃO: COORDENADAS GEODÉSICAS (EXCEL NATIVO)
+// =========================================================================
+document.getElementById('rs-btn-extract-xls').addEventListener('click', async (e) => {
+    e.preventDefault();
+    let hasData = false;
+    Object.keys(rsGlebasData).forEach(g => { if (rsGlebasData[g].length > 0) hasData = true; });
+    if (!hasData) return alert("Erro: Nenhuma coordenada em memória para exportar.");
+
+    let ws_data = [["Cultura", "Formato da Gleba", "Area Nao Cultivada", "Gleba", "Ponto", "Lat", "Long", "Alt"]];
+    Object.keys(rsGlebasData).forEach(glebaName => {
+        let coords = rsGlebasData[glebaName];
+        if (coords.length > 0) {
+            let culturaName = glebaName.toUpperCase();
+            coords.forEach((c, index) => {
+                ws_data.push([culturaName, "Formatos Diversos", "0,00", culturaName, index + 1, c[0], c[1], c[2] || 0]);
+            });
+        }
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(ws_data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Coordenadas");
+
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+    // Dispara a caixa do Windows pedindo caminho de destino
+    await rsSalvarArquivoComPrompt(blob, "PLANILHA_COORDENADAS_GEODESICAS.xlsx", 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', ['.xlsx']);
+});
 
 
 </script>
