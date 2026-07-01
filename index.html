@@ -1591,8 +1591,12 @@ body.kanban-zen-active {
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
         <strong style="color: var(--primary-color); font-size: 16px;">TITULAR</strong>
         <div style="display: flex; gap: 10px; align-items: stretch; height: 28px;">
+            
             <button type="button" onclick="document.getElementById('upload_s400_titular').click()" style="background: white; border: 1px solid var(--primary-color); color: var(--primary-color); padding: 0 10px; font-size: 11px; border-radius: 4px; cursor: pointer; font-weight: bold; display: flex; align-items: center; height: 100%; box-sizing: border-box;">📂 IMPORTAR S400</button>
             <input type="file" id="upload_s400_titular" accept="application/pdf" style="display: none;" onchange="lerPDFS400('titular', this)">
+            
+            <button type="button" onclick="document.getElementById('file_import_s970').click()" style="background: white; border: 1px solid var(--primary-color); color: var(--primary-color); padding: 0 10px; font-size: 11px; border-radius: 4px; cursor: pointer; font-weight: bold; display: flex; align-items: center; height: 100%; box-sizing: border-box;">ℹ️ IMPORTAR S970</button>
+            <input type="file" id="file_import_s970" accept=".xls, .xlsx, .csv" style="display: none;" onchange="importarS970(event)">
             
             <div style="position: relative; height: 100%;">
                 <button id="btn_check_titular" onclick="toggleMenuChecklistTitular()" style="background: white; border: 1px solid var(--primary-color); color: var(--primary-color); padding: 0 10px; font-size: 11px; border-radius: 4px; cursor: pointer; font-weight: bold; display: flex; align-items: center; height: 100%; box-sizing: border-box;">📝 GERAR CHECK-LIST ▼</button>
@@ -1603,6 +1607,7 @@ body.kanban-zen-active {
                     <button onclick="abrirChecklist('titular', 'custeio')" style="width: 100%; text-align: left; background: none; color: #333; border: none; padding: 8px 12px; font-size: 11px; cursor: pointer;">📋 Check-List Custeio</button>
                 </div>
             </div>
+            
         </div>
     </div>
 
@@ -1895,13 +1900,24 @@ body.kanban-zen-active {
 
     <section>
         <h2>CONTAS E OPERAÇÕES EM SER</h2>
-        <div style="display:flex; align-items:end; gap: 15px; margin-bottom: 15px;">
-            <div class="form-group" style="flex:1; margin:0;"><label>Conta Corrente</label><input type="text" id="conta_cc"></div>
+        
+        <div style="display:flex; align-items:end; gap: 15px; margin-bottom: 15px; position: relative;">
+            
+            <div class="form-group" style="flex:1; margin:0;">
+                <label>Conta Corrente</label>
+                <input type="text" id="conta_cc">
+            </div>
+            
             <div style="flex:2;">
                 <button id="btn_add_desembolso" onclick="addConta('desembolso')" style="background-color: var(--support-gray); padding: 7px 12px; font-size: 12px; margin-right: 5px;">+ Add C. Desembolso</button>
                 <button id="btn_add_fundo" onclick="addConta('fundo')" style="background-color: var(--support-gray); padding: 7px 12px; font-size: 12px;">+ Add C. Fundo</button>
             </div>
+
+            <div style="position: absolute; right: 0; top: -12px;">
+                <input type="file" id="file_import_s970" accept=".xls, .xlsx, .csv" style="display: none;" onchange="importarS970(event)">
+            </div>
         </div>
+
         <div class="grid" id="container_contas_extras"></div>
         <hr style="margin:25px 0; border:0; border-top:1px solid var(--border-color);">
         <div class="form-group" style="margin-top:10px">
@@ -8879,15 +8895,21 @@ function processarGeradorSolicitacaoPlanta() {
                         </div>
 
                         <div class="rs-input-group">
-                            <label id="rs-lbl-coords" for="rs-coords-input" style="font-weight: 600; color: #0f172a; display: flex; flex-direction: column; gap: 6px;">
-                                <div>Coordenadas <span id="rs-active-gleba-title" style="color: #ef4444;">[NENHUMA ÁREA SELECIONADA]</span></div>
-                                <button id="rs-btn-activate-edit" class="rs-btn rs-btn-outline" data-active="false" style="font-size: 0.8rem; padding: 6px 12px; background-color: #f1f5f9; justify-content: center; display: none;">🗺️ Ajustar Geometria no Mapa</button>
-                            </label>
-                            <div class="rs-textarea-container">
-                                <textarea id="rs-coords-input" class="rs-textarea" placeholder="-4.1143765309, -46.5736519898, 0..."></textarea>
-                                <div id="rs-coords-overlay" class="rs-textarea-overlay" aria-hidden="true"></div>
-                            </div>
-                        </div>
+    <label id="rs-lbl-coords" for="rs-coords-input" style="font-weight: 600; color: #0f172a; display: flex; flex-direction: column; gap: 6px;">
+        <div>Coordenadas <span id="rs-active-gleba-title" style="color: #ef4444;">[NENHUMA ÁREA SELECIONADA]</span></div>
+        
+        <div id="rs-container-botoes-edit" style="display: none; gap: 8px;">
+            <button id="rs-btn-activate-edit" class="rs-btn rs-btn-outline" data-active="false" style="flex: 1; font-size: 0.8rem; padding: 6px 12px; background-color: #f1f5f9; justify-content: center;">🗺️ Ajustar Geometria</button>
+            <button id="rs-btn-draw-mode" class="rs-btn rs-btn-outline" data-drawing="false" style="font-size: 1.1rem; padding: 4px 12px; background-color: #f1f5f9; justify-content: center;" title="Modo Caneta: Clicar no mapa para adicionar pontos">✒️</button>
+        </div>
+    </label>
+    
+    <div class="rs-textarea-container">
+        <textarea id="rs-coords-input" class="rs-textarea" placeholder="-4.1143765309, -46.5736519898, 0..."></textarea>
+        <div id="rs-coords-overlay" class="rs-textarea-overlay" aria-hidden="true"></div>
+    </div>
+    <small class="rs-hint">Insira Latitude, Longitude. Nós ajustados recebem selo holográfico.</small>
+</div>
 
                         <button id="rs-btn-download-new" class="rs-btn rs-btn-primary rs-full-width" style="background-color:#004C27; color: #ffffff;">📥 Baixar Novo KML</button>
                     </div>
@@ -14662,6 +14684,77 @@ async function lerPDFS400(entidade, input) {
             const matchDataEmissao = txt.match(/Data de Emissão:.*?(\d{2}\/\d{2}\/\d{4})/i);
             if(matchDataEmissao) document.getElementById(`data_emissao_${entidade}`).value = matchDataEmissao[1];
 
+            // =========================================================
+            // CAPTURA DO PROCURADOR (REPRESENTADO POR)
+            // =========================================================
+            if (entidade === 'titular') {
+                // A Regex captura o CPF (Grupo 1) e o Nome (Grupo 2), parando no código do banco (ex: 9217751-8) ou outro parente
+                const matchProcurador = txt.match(/REPRESENTADO(?:\s+POR)?\s+([\d\.\-]{11,14})\s*[-–—]?\s*([A-ZÀ-Ÿ\s]+?)(?=\s+\d+-\d|\s+C[ÔO]NJUGE|\s+M[ÃA]E|\s+PAI|\s*$)/i);
+                
+                if (matchProcurador) {
+                    let cpfProc = matchProcurador[1].trim();
+                    let nomeProc = matchProcurador[2].trim();
+                    
+                    // 1. Muda a caixa select para "SIM" e aciona a função que abre o card do procurador
+                    let selectTemProcurador = document.getElementById('tem_procurador');
+                    if (selectTemProcurador) {
+                        selectTemProcurador.value = "SIM";
+                        if (typeof verificarProcurador === "function") verificarProcurador();
+                    }
+                    
+                    // 2. Preenche os campos do Procurador
+                    let campoNomeProc = document.getElementById('nome_procurador');
+                    let campoCpfProc = document.getElementById('cpf_procurador');
+                    
+                    if (campoNomeProc) campoNomeProc.value = nomeProc;
+                    
+                    if (campoCpfProc) {
+                        campoCpfProc.value = cpfProc;
+                        // Aplica a formatação do CPF instantaneamente
+                        if (typeof mascaraCPF === "function") mascaraCPF(campoCpfProc); 
+                    }
+                    
+                    // 3. Sincroniza os títulos e checklists 
+                    if (typeof syncAll === "function") syncAll('procurador');
+                }
+            }
+
+            // =========================================================
+            // CAPTURA DA CONTA CORRENTE (SANTA INÊS)
+            // =========================================================
+            if (entidade === 'titular') {
+                // 1. Isola o texto: Procura RENDAS, depois NEGÓCIOS, e captura tudo o que vier depois
+                let matchBlocos = txt.match(/RENDAS[\s\S]*?NEG[ÓO]CIOS([\s\S]*)/i);
+                
+                if (matchBlocos) {
+                    let blocoNegocios = matchBlocos[1];
+                    
+                    // 2. Caça a primeira ocorrência EXATA de Santa Inês + Conta Corrente + Número
+                    // O \s+ garante que ele entenda as quebras de linha entre as palavras no PDF
+                    let matchConta = blocoNegocios.match(/SANTA\s+IN[EÊ]S\s+Conta\s+Corrente\s+(\d+)/i);
+                    
+                    if (matchConta) {
+                        let numeroConta = matchConta[1]; // Pega apenas os números (ex: 0000526822)
+                        
+                        // 3. Remove todos os zeros à esquerda
+                        numeroConta = numeroConta.replace(/^0+/, '');
+                        
+                        // 4. Isola o último dígito e adiciona o traço (ex: 52682 -> 52682-2)
+                        if (numeroConta.length > 1) {
+                            numeroConta = numeroConta.slice(0, -1) + '-' + numeroConta.slice(-1);
+                        }
+                        
+                        // 5. Injeta no campo do sistema
+                        // ⚠️ ATENÇÃO: Se o ID do seu campo HTML for diferente de 'conta_corrente', altere na linha abaixo!
+                        let campoConta = document.getElementById('conta_cc');
+                        if (campoConta) {
+                            campoConta.value = numeroConta;
+                            campoConta.dispatchEvent(new Event('input')); // Dispara validações visuais do seu sistema
+                        }
+                    }
+                }
+            }
+
             // RBA
             const rbaAnualStr = extrair(/Receita Bruta Agropecuária Anual \(RBA\):\s*R\$\s*([\d\.,]+)/i);
             if(rbaAnualStr) {
@@ -14678,10 +14771,14 @@ async function lerPDFS400(entidade, input) {
                 document.getElementById(`data_renov_${entidade}`).value = `${partes[2]}-${partes[1]}-${partes[0]}`;
                 if(typeof calcMeses === "function") calcMeses(entidade); 
             }
-            const rua = extrair(/Logradouro:\s*(.*?)(?=\s*Bairro|$)/i);
-            const bairro = extrair(/Bairro:\s*(.*?)(?=\s*Telefone|Cidade|$)/i);
-            const cidade = extrair(/Cidade:\s*(.*?)(?=\s*Celular|CEP|$)/i);
-            const cep = extrair(/CEP:\s*([\d\.-]+)/);
+            // --- CORREÇÃO CIRÚRGICA DO ENDEREÇO ---
+            // A regex agora procura a partir do "ENDEREÇO RESIDENCIAL" e exige que o campo não esteja vazio ([^\s]),
+            // ignorando o "ENDEREÇO DAP" que costuma vir em branco no topo do PDF.
+            const rua = extrair(/ENDEREÇO RESIDENCIAL.*?Logradouro:\s*([^\s].*?)(?=\s*Bairro|$)/i) || extrair(/Logradouro:\s*(.*?)(?=\s*Bairro|$)/i);
+            const bairro = extrair(/ENDEREÇO RESIDENCIAL.*?Bairro:\s*([^\s].*?)(?=\s*Telefone|Cidade|$)/i) || extrair(/Bairro:\s*(.*?)(?=\s*Telefone|Cidade|$)/i);
+            const cidade = extrair(/ENDEREÇO RESIDENCIAL.*?Cidade:\s*([^\s].*?)(?=\s*Celular|CEP|$)/i) || extrair(/Cidade:\s*(.*?)(?=\s*Celular|CEP|$)/i);
+            const cep = extrair(/ENDEREÇO RESIDENCIAL.*?CEP:\s*([\d\.-]+)/i) || extrair(/CEP:\s*([\d\.-]+)/i);
+            
             document.getElementById(`end_completo_${entidade}`).value = `${rua}, ${bairro}, ${cidade}`;
             document.getElementById(`cep_${entidade}`).value = cep;
 
@@ -14724,9 +14821,16 @@ async function lerPDFS400(entidade, input) {
                     if (/Tipo:\s*(IM[OÓ]VEL RURAL|FAZENDA)/i.test(bloco)) {
                         
                         let matchNome = bloco.match(/Denomina[çc][ãa]o:\s*(.*?)(?=\s*(?:Removibilidade|Área Total|Descri[çc][ãa]o|Munic[íi]pio|Nr|CAR|Situa[çc][ãa]o|Tipo|$))/i);
-                        
                         if (matchNome && matchNome[1].trim() !== "") {
                             let nomeImovel = matchNome[1].trim();
+                            
+                            // 🎯 NOVA REGRA CIRÚRGICA: Filtro por "denominado(a)"
+                            // Procura a expressão "denominado" ou "denominada" ignorando maiúsculas/minúsculas
+                            let matchDenominado = nomeImovel.match(/denominad[oa]\s+([^,]+)/i);
+                            if (matchDenominado) {
+                                // Extrai apenas o texto após a palavra até a primeira vírgula
+                                nomeImovel = matchDenominado[1].trim();
+                            }
                             
                             // ===============================================================
                             // CERCADINHO PRINCIPAL (Do Nome até Localização)
@@ -14785,6 +14889,7 @@ async function lerPDFS400(entidade, input) {
                             let mValor = blocoDelimitado.match(/Valor\s*Avaliado:\s*R\$?\s*(.*?)(?=\s*Data)/i);
                             if (mValor) valorImovel = mValor[1].trim();
 
+                                                      
                             // 7. Nº do SNCR (Entre "Nr. do Registro:" e "INCRA")
                             let sncrImovel = "";
                             if (indexMat !== -1) {
@@ -14835,6 +14940,7 @@ async function lerPDFS400(entidade, input) {
                                 setV('car', carImovel);
                                 setV('sncr', sncrImovel);
                                 setV('nirf', nirfImovel);
+                                setV('cib', nirfImovel);
                                 setV('grau_posse', posseImovel);
                                 setV('cartorio', cartorioImovel);
 
@@ -18233,8 +18339,8 @@ const dbProjetistasCompleto = [
     { nome: "ALTEMAR LEITE DA NOBREGA", reg: "1104537206", cpf: "665.167.304-15" },
     { nome: "RUI MENDES RODRIGUES", reg: "1600208053", cpf: "045.336.304-05" },
     { nome: "RAIMUNDO ALLANDERSON JOAB LIMA AZEVEDO", reg: "9800D/MA", cpf: "025.042.743-51" },
-    { nome: "JORDEAN DA CONCEIÇÃO RODRIGUES", reg: "1727844335", cpf: "017278443-35" },
-    { nome: "FAGNER SOUSA NASCIMENTO", reg: "1107456002", cpf: "" },
+    { nome: "JORDEAN DA CONCEIÇÃO RODRIGUES", reg: "1727844335", cpf: "017.278.443-35" },
+    { nome: "FAGNER SOUSA NASCIMENTO", reg: "1107456002", cpf: "009.556.693-75" },
     { nome: "PEDRO SILVA DUTRA", reg: "02410832300", cpf: "024.108.323-00" },
     { nome: "DEIMID RODRIGUES DA SILVA", reg: "1120602378", cpf: "034.156.832-57" },
     { nome: "JOCELAN BEZERRA TINOCO", reg: "45012970349", cpf: "450.129.703-49" },
@@ -20100,88 +20206,100 @@ const KML_TOOL = {
         }
 
         // ATUALIZAÇÃO DA LISTA DE CHECKBOXES E GERENCIAMENTO VISUAL
-        // ATUALIZAÇÃO DA LISTA DE CHECKBOXES E GERENCIAMENTO VISUAL
-        // ATUALIZAÇÃO DA LISTA DE CHECKBOXES E GERENCIAMENTO VISUAL
-        // ATUALIZAÇÃO DA LISTA DE CHECKBOXES E GERENCIAMENTO VISUAL
-        function rsUpdateGlebaInterface(mantemEditando = null) {
-            const listGroup = document.getElementById('rs-glebas-list-group');
-            listGroup.innerHTML = '';
-            
-            const glebas = Object.keys(rsGlebasData);
-            const titleSpan = document.getElementById('rs-active-gleba-title');
-            const btnActivate = document.getElementById('rs-btn-activate-edit');
-            
-            if (glebas.length === 0) {
-                listGroup.innerHTML = '<div style="font-size:0.8rem; color:#64748b; padding:8px; text-align:center;">Nenhuma gleba cadastrada...</div>';
-                document.getElementById('rs-coords-input').value = '';
-                document.getElementById('rs-coords-overlay').innerHTML = ''; // Limpa o holograma
-                titleSpan.textContent = "[NENHUMA ÁREA SELECIONADA]";
-                titleSpan.style.color = "var(--ui-danger)";
-                btnActivate.style.display = "none";
-                rsActiveGlebaEdit = null;
-                rsDrawEditNodes(null); 
-                return;
-            }
+function rsUpdateGlebaInterface(mantemEditando = null) {
+    const listGroup = document.getElementById('rs-glebas-list-group');
+    listGroup.innerHTML = '';
+    
+    const glebas = Object.keys(rsGlebasData);
+    const titleSpan = document.getElementById('rs-active-gleba-title');
+    const btnActivate = document.getElementById('rs-btn-activate-edit');
+    
+    // NOVOS ELEMENTOS: Captura o container flexível e o botão da caneta
+    const containerBotoes = document.getElementById('rs-container-botoes-edit');
+    const btnDraw = document.getElementById('rs-btn-draw-mode');
+    
+    if (glebas.length === 0) {
+        listGroup.innerHTML = '<div style="font-size:0.8rem; color:#64748b; padding:8px; text-align:center;">Nenhuma gleba cadastrada...</div>';
+        document.getElementById('rs-coords-input').value = '';
+        if (document.getElementById('rs-coords-overlay')) document.getElementById('rs-coords-overlay').innerHTML = ''; 
+        titleSpan.textContent = "[NENHUMA ÁREA SELECIONADA]";
+        titleSpan.style.color = "var(--ui-danger)";
+        
+        // TRAVA 1: Esconde o painel de botões se não houver área
+        if (containerBotoes) containerBotoes.style.display = "none";
+        
+        rsActiveGlebaEdit = null;
+        rsDrawEditNodes(null); 
+        return;
+    }
 
-            glebas.forEach(gleba => {
-                if (!rsGlebasColors[gleba]) {
-                    const coresPadrao = ['#00A550', '#004C27', '#D99700', '#2563eb', '#ea580c', '#9333ea', '#0284c7', '#b91c1c'];
-                    rsGlebasColors[gleba] = coresPadrao[Object.keys(rsGlebasColors).length % coresPadrao.length];
-                }
+    glebas.forEach(gleba => {
+        if (!rsGlebasColors[gleba]) {
+            const coresPadrao = ['#00A550', '#004C27', '#D99700', '#2563eb', '#ea580c', '#9333ea', '#0284c7', '#b91c1c'];
+            rsGlebasColors[gleba] = coresPadrao[Object.keys(rsGlebasColors).length % coresPadrao.length];
+        }
 
-                const isChecked = rsLayersGroup[gleba] ? 'checked' : '';
-                const row = document.createElement('div');
-                row.className = 'rs-gleba-item-row';
-                if (rsActiveGlebaEdit === gleba) row.style.borderColor = 'var(--bn-verde-claro)';
+        const isChecked = rsLayersGroup[gleba] ? 'checked' : '';
+        const row = document.createElement('div');
+        row.className = 'rs-gleba-item-row';
+        if (rsActiveGlebaEdit === gleba) row.style.borderColor = 'var(--bn-verde-claro)';
 
-                row.innerHTML = `
-                    <input type="checkbox" class="rs-checkbox rs-layer-toggle" data-gleba="${gleba}" ${isChecked}>
-                    <input type="color" class="rs-color-picker rs-layer-color" data-gleba="${gleba}" value="${rsGlebasColors[gleba]}">
-                    <span class="rs-gleba-name-span" data-gleba="${gleba}">${gleba.toUpperCase()}</span>
-                    <button class="rs-mini-btn rs-edit-trigger" data-gleba="${gleba}" title="Editar Coordenadas">📝</button>
-                    <button class="rs-mini-btn rs-rename-trigger" data-gleba="${gleba}" title="Renomear">✏️</button>
-                    <button class="rs-mini-btn rs-delete-trigger" data-gleba="${gleba}" title="Excluir">🗑️</button>
-                `;
-                listGroup.appendChild(row);
-            });
+        row.innerHTML = `
+            <input type="checkbox" class="rs-checkbox rs-layer-toggle" data-gleba="${gleba}" ${isChecked}>
+            <input type="color" class="rs-color-picker rs-layer-color" data-gleba="${gleba}" value="${rsGlebasColors[gleba]}">
+            <span class="rs-gleba-name-span" data-gleba="${gleba}">${gleba.toUpperCase()}</span>
+            <button class="rs-mini-btn rs-edit-trigger" data-gleba="${gleba}" title="Editar Coordenadas">📝</button>
+            <button class="rs-mini-btn rs-rename-trigger" data-gleba="${gleba}" title="Renomear">✏️</button>
+            <button class="rs-mini-btn rs-delete-trigger" data-gleba="${gleba}" title="Excluir">🗑️</button>
+        `;
+        listGroup.appendChild(row);
+    });
 
-            // SE HOUVER UMA GLEBA SENDO EDITADA, ACIONA O HOLOGRAMA E O TÍTULO
-            if (mantemEditando && rsGlebasData[mantemEditando]) {
-                rsActiveGlebaEdit = mantemEditando;
-                
-                rsSyncTextAndOverlay(mantemEditando);
-                
-                titleSpan.textContent = `- ${mantemEditando.toUpperCase()}`;
-                titleSpan.style.color = "var(--bn-verde-claro)";
-                
-                btnActivate.style.display = "block";
-                
-                const isCurrentlyActive = btnActivate.dataset.active === "true";
-                if (isCurrentlyActive) {
-                    // Se já estava ativo, mantemos o visual de "Ativo"
-                    btnActivate.innerHTML = "✅ MODO DE AJUSTE ATIVO";
-                    btnActivate.style.backgroundColor = "#2563eb";
-                    btnActivate.style.color = "#ffffff";
-                } else {
-                    btnActivate.innerHTML = "🗺️ AJUSTAR GEOMETRIA NO MAPA";
-                    btnActivate.style.backgroundColor = "#f1f5f9";
-                    btnActivate.style.color = "#475569";
-                }
-            }
+    // SE HOUVER UMA GLEBA SENDO EDITADA, ACIONA O HOLOGRAMA E O TÍTULO
+    if (mantemEditando && rsGlebasData[mantemEditando]) {
+        rsActiveGlebaEdit = mantemEditando;
+        
+        rsSyncTextAndOverlay(mantemEditando);
+        
+        titleSpan.textContent = `- ${mantemEditando.toUpperCase()}`;
+        titleSpan.style.color = "var(--bn-verde-claro)";
+        
+        // TRAVA 2: Mostra o container com os dois botões
+        if (containerBotoes) containerBotoes.style.display = "flex";
+        
+        const isCurrentlyActive = btnActivate.dataset.active === "true";
+        if (isCurrentlyActive) {
+            btnActivate.innerHTML = "✅ MODO DE AJUSTE ATIVO";
+            btnActivate.style.backgroundColor = "#2563eb";
+            btnActivate.style.color = "#ffffff";
+        } else {
+            btnActivate.innerHTML = "🗺️ AJUSTAR GEOMETRIA";
+            btnActivate.style.backgroundColor = "#f1f5f9";
+            btnActivate.style.color = "#475569";
             
-            rsBindListEvents();
-            
-            // CORREÇÃO CRÍTICA DO BUG DE RENDERIZAÇÃO:
-            // Só limpa o mapa se NENHUMA gleba estiver em edição. 
-            // Se houver gleba E o botão de ajuste estiver ligado, reconstrói os nós automaticamente!
-            if (!mantemEditando) {
-                rsDrawEditNodes(null);
-            } else {
-                if (btnActivate.dataset.active === "true") {
-                    rsDrawEditNodes(mantemEditando);
-                }
+            // TRAVA 3: Se o Ajuste for desligado, desliga a caneta por segurança
+            if (btnDraw) {
+                btnDraw.dataset.drawing = "false";
+                btnDraw.style.backgroundColor = "#f1f5f9";
+                btnDraw.style.borderColor = "var(--ui-border)";
+                btnDraw.style.boxShadow = "none";
             }
         }
+    } else {
+        // TRAVA 4: Esconde se a área deixar de estar em edição
+        if (containerBotoes) containerBotoes.style.display = "none";
+    }
+    
+    rsBindListEvents();
+    
+    if (!mantemEditando) {
+        rsDrawEditNodes(null);
+    } else {
+        if (btnActivate.dataset.active === "true") {
+            rsDrawEditNodes(mantemEditando);
+        }
+    }
+}
 
         // =========================================================================
         // MOTOR DO MODAL DE EXPORTAÇÃO E ÁREA DE TRANSFERÊNCIA
@@ -20343,35 +20461,51 @@ const KML_TOOL = {
             }
         }
 
-        // REDESENHO EM TEMPO REAL TOTAL
-        function rsRedrawPolygon(gleba) {
-            if (rsLayersGroup[gleba]) {
-                rsMap.removeLayer(rsLayersGroup[gleba]);
-                delete rsLayersGroup[gleba];
-            }
+        // REDESENHO EM TEMPO REAL (COM DETECÇÃO MATEMÁTICA DE FECHAMENTO)
+function rsRedrawPolygon(gleba) {
+    if (rsLayersGroup[gleba]) {
+        rsMap.removeLayer(rsLayersGroup[gleba]);
+        delete rsLayersGroup[gleba];
+    }
 
-            const coords = rsGlebasData[gleba];
-            if (!rsGlebasColors[gleba]) rsUpdateGlebaInterface();
-            const cor = rsGlebasColors[gleba];
+    const coords = rsGlebasData[gleba];
+    if (!rsGlebasColors[gleba]) rsUpdateGlebaInterface();
+    const cor = rsGlebasColors[gleba];
 
-            if (coords && coords.length > 0) {
-                const leafletCoords = coords.map(c => [c[0], c[1]]);
-                
-                if (coords.length === 1) {
-                    rsLayersGroup[gleba] = L.circleMarker(leafletCoords[0], {
-                        color: cor, radius: 6, fillColor: cor, fillOpacity: 0.7
-                    }).addTo(rsMap);
-                } else if (coords.length === 2) {
-                    rsLayersGroup[gleba] = L.polyline(leafletCoords, {
-                        color: cor, weight: 4
-                    }).addTo(rsMap);
-                } else {
-                    rsLayersGroup[gleba] = L.polygon(leafletCoords, {
-                        color: cor, fillColor: cor, fillOpacity: 0.35, weight: 3
-                    }).addTo(rsMap);
-                }
+    if (coords && coords.length > 0) {
+        const leafletCoords = coords.map(c => [c[0], c[1]]);
+        
+        const btnDraw = document.getElementById('rs-btn-draw-mode');
+        const isDrawing = (btnDraw && btnDraw.dataset.drawing === "true" && rsActiveGlebaEdit === gleba);
+
+        // A MÁGICA 1: Checa matematicamente se o polígono está fechado (Primeiro Ponto == Último Ponto)
+        let isClosedMath = false;
+        if (coords.length > 2) {
+            let first = coords[0];
+            let last = coords[coords.length - 1];
+            // Se as coordenadas exatas baterem, ele reconhece o fechamento
+            if (first[0] === last[0] && first[1] === last[1]) {
+                isClosedMath = true;
             }
         }
+
+        if (coords.length === 1) {
+            rsLayersGroup[gleba] = L.circleMarker(leafletCoords[0], {
+                color: cor, radius: 6, fillColor: cor, fillOpacity: 0.7
+            }).addTo(rsMap);
+        } else if (isDrawing && !isClosedMath) { 
+            // Renderiza como Linha Aberta APENAS se a caneta estiver ligada E o traçado não estiver cruzado
+            rsLayersGroup[gleba] = L.polyline(leafletCoords, {
+                color: cor, weight: 4
+            }).addTo(rsMap);
+        } else {
+            // Renderiza como Polígono Sólido (Se a caneta desligou ou se o usuário cruzou os pontos)
+            rsLayersGroup[gleba] = L.polygon(leafletCoords, {
+                color: cor, fillColor: cor, fillOpacity: 0.35, weight: 3
+            }).addTo(rsMap);
+        }
+    }
+}
 
         // =========================================================================
         // SINCRONIA DE ROLAGEM HOLOGRÁFICA
@@ -20407,115 +20541,104 @@ const KML_TOOL = {
             overlay.innerHTML = overlayHTML.join('<br>');
         }
 
-        // MOTOR DE GERAÇÃO DOS NÓS CONTROLANDO VISIBILIDADE DAS CAMADAS
-        function rsDrawEditNodes(gleba) {
-            window.rsVertexMarkers = window.rsVertexMarkers || [];
-            window.rsVertexMarkers.forEach(m => rsMap.removeLayer(m));
-            window.rsVertexMarkers = [];
+        // MOTOR DE GERAÇÃO DOS NÓS E EVENTOS DE CLIQUE/ARRASTO
+function rsDrawEditNodes(gleba) {
+    window.rsVertexMarkers = window.rsVertexMarkers || [];
+    window.rsVertexMarkers.forEach(m => rsMap.removeLayer(m));
+    window.rsVertexMarkers = [];
 
-            if (!gleba || !rsGlebasData[gleba] || rsGlebasData[gleba].length === 0) return;
+    if (!gleba || !rsGlebasData[gleba] || rsGlebasData[gleba].length === 0) return;
+    if (!rsLayersGroup[gleba]) return;
 
-            // REGRA 2: Se a camada da gleba estiver desmarcada (oculta) no mapa, NÃO exibe os nós de forma alguma
-            if (!rsLayersGroup[gleba]) return;
+    const btn = document.getElementById('rs-btn-activate-edit');
+    if (btn.dataset.active !== "true") return;
 
-            // MANTENEDOR DE ESTADO: Se o botão estiver ativo, garante que o modo de edição persista após redesenhos
-            const btn = document.getElementById('rs-btn-activate-edit');
-            if (btn.dataset.active !== "true") return;
-
-            // =========================================================================
-            // FILTRO DE SINGULARIDADE GEOMÉTRICA (Remove coordenadas duplicadas seguidas)
-            // =========================================================================
-            let rawCoords = rsGlebasData[gleba];
-            let cleanCoords = [rawCoords[0]];
-            for (let i = 1; i < rawCoords.length; i++) {
-                let prev = cleanCoords[cleanCoords.length - 1];
-                let curr = rawCoords[i];
-                // Só adiciona se o ponto atual for diferente do ponto imediatamente anterior
-                if (prev[0] !== curr[0] || prev[1] !== curr[1]) {
-                    cleanCoords.push(curr);
-                }
-            }
-            rsGlebasData[gleba] = cleanCoords; // Atualiza a memória com o KML limpo sem pontos empilhados
-            // =========================================================================
-
-            if (!window.rsEditedNodes) window.rsEditedNodes = {};
-            if (!window.rsEditedNodes[gleba]) window.rsEditedNodes[gleba] = new Set();
-
-            const coords = rsGlebasData[gleba];
-            const iconNormal = L.divIcon({ className: 'rs-vertex-marker', iconSize: [10, 10], iconAnchor: [5, 5] });
-            const iconGhost = L.divIcon({ className: 'rs-vertex-ghost', iconSize: [8, 8], iconAnchor: [4, 4] });
-
-            // 1. GERAÇÃO DOS NÓS REAIS
-            coords.forEach((c, index) => {
-                const marker = L.marker([c[0], c[1]], { icon: iconNormal, draggable: true }).addTo(rsMap);
-
-                marker.on('dragstart', () => rsSaveState()); 
-
-                marker.on('drag', function(e) {
-                    const latlng = e.target.getLatLng();
-                    rsGlebasData[gleba][index][0] = latlng.lat;
-                    rsGlebasData[gleba][index][1] = latlng.lng;
-
-                    window.rsEditedNodes[gleba].add(index);
-
-                    const newLeafletCoords = rsGlebasData[gleba].map(coord => [coord[0], coord[1]]);
-                    if (rsLayersGroup[gleba] && rsLayersGroup[gleba].setLatLngs) { 
-                        rsLayersGroup[gleba].setLatLngs(newLeafletCoords);
-                    }
-
-                    // Usa a nova sincronia holográfica blindada
-                    rsSyncTextAndOverlay(gleba);
-
-                    const textarea = document.getElementById('rs-coords-input');
-                    const lines = textarea.value.split('\n');
-                    let startPos = 0;
-                    for (let i = 0; i < index; i++) startPos += lines[i].length + 1;
-                    let endPos = startPos + lines[index].length;
-                    
-                    const lineHeight = parseInt(window.getComputedStyle(textarea).lineHeight) || 20;
-                    textarea.scrollTop = (index * lineHeight) - (textarea.clientHeight / 2) + lineHeight;
-                    
-                    textarea.setSelectionRange(startPos, endPos);
-                });
-
-                marker.on('dragend', () => rsDrawEditNodes(gleba));
-
-                marker.on('contextmenu', function(e) {
-                    rsSaveState(); 
-                    rsGlebasData[gleba].splice(index, 1); 
-                    window.rsEditedNodes[gleba].clear();
-                    rsRedrawPolygon(gleba);
-                    rsDrawEditNodes(gleba); // Redesenha os nós ativos imediatamente
-                    rsUpdateGlebaInterface(gleba);
-                });
-
-                window.rsVertexMarkers.push(marker);
-            });
-
-            // 2. GERAÇÃO DOS NÓS FANTASMAS
-            if (coords.length >= 2) {
-                for (let i = 0; i < coords.length; i++) {
-                    if (i === coords.length - 1 && coords.length === 2) break;
-                    
-                    let nextIndex = (i + 1) % coords.length;
-                    let midLat = (coords[i][0] + coords[nextIndex][0]) / 2;
-                    let midLng = (coords[i][1] + coords[nextIndex][1]) / 2;
-
-                    const ghost = L.marker([midLat, midLng], { icon: iconGhost, opacity: 0.6 }).addTo(rsMap);
-
-                    ghost.on('click', function() {
-                        rsSaveState(); 
-                        rsGlebasData[gleba].splice(nextIndex, 0, [midLat, midLng, 0.0]);
-                        window.rsEditedNodes[gleba].clear();
-                        rsRedrawPolygon(gleba);
-                        rsDrawEditNodes(gleba); // Mantém o modo de edição ligado após inserir ponto
-                        rsUpdateGlebaInterface(gleba);
-                    });
-
-                    window.rsVertexMarkers.push(ghost);
-                }
-            }
+    let rawCoords = rsGlebasData[gleba];
+    let cleanCoords = [rawCoords[0]];
+    for (let i = 1; i < rawCoords.length; i++) {
+        let prev = cleanCoords[cleanCoords.length - 1];
+        let curr = rawCoords[i];
+        if (prev[0] !== curr[0] || prev[1] !== curr[1]) {
+            cleanCoords.push(curr);
         }
+    }
+    rsGlebasData[gleba] = cleanCoords; 
+
+    if (!window.rsEditedNodes) window.rsEditedNodes = {};
+    if (!window.rsEditedNodes[gleba]) window.rsEditedNodes[gleba] = new Set();
+
+    const coords = rsGlebasData[gleba];
+    const iconNormal = L.divIcon({ className: 'rs-vertex-marker', iconSize: [10, 10], iconAnchor: [5, 5] });
+    const iconGhost = L.divIcon({ className: 'rs-vertex-ghost', iconSize: [8, 8], iconAnchor: [4, 4] });
+
+    coords.forEach((c, index) => {
+        const marker = L.marker([c[0], c[1]], { icon: iconNormal, draggable: true }).addTo(rsMap);
+
+        marker.on('dragstart', () => rsSaveState()); 
+        marker.on('drag', function(e) {
+            const latlng = e.target.getLatLng();
+            rsGlebasData[gleba][index][0] = latlng.lat;
+            rsGlebasData[gleba][index][1] = latlng.lng;
+            window.rsEditedNodes[gleba].add(index);
+            const newLeafletCoords = rsGlebasData[gleba].map(coord => [coord[0], coord[1]]);
+            if (rsLayersGroup[gleba] && rsLayersGroup[gleba].setLatLngs) { 
+                rsLayersGroup[gleba].setLatLngs(newLeafletCoords);
+            }
+            rsSyncTextAndOverlay(gleba);
+        });
+
+        marker.on('dragend', () => rsDrawEditNodes(gleba));
+
+        marker.on('contextmenu', function(e) {
+            rsSaveState(); 
+            rsGlebasData[gleba].splice(index, 1); 
+            window.rsEditedNodes[gleba].clear();
+            rsRedrawPolygon(gleba);
+            rsDrawEditNodes(gleba); 
+            rsUpdateGlebaInterface(gleba);
+        });
+
+        // A MÁGICA 2: Clicar sobre o primeiro nó para fechar o polígono!
+        marker.on('click', function(e) {
+            const btnDraw = document.getElementById('rs-btn-draw-mode');
+            if (btnDraw && btnDraw.dataset.drawing === "true") {
+                // Se clicou no primeiro ponto e há pelo menos 3 pontos no desenho
+                if (index === 0 && rsGlebasData[gleba].length > 2) {
+                    rsSaveState();
+                    // Copia o Ponto Zero e cola no final da fila (Cruzamento Geométrico)
+                    rsGlebasData[gleba].push([rsGlebasData[gleba][0][0], rsGlebasData[gleba][0][1], rsGlebasData[gleba][0][2]]);
+                    rsRedrawPolygon(gleba);
+                    rsDrawEditNodes(gleba);
+                    rsSyncTextAndOverlay(gleba);
+                }
+            }
+        });
+
+        window.rsVertexMarkers.push(marker);
+    });
+
+    if (coords.length >= 2) {
+        for (let i = 0; i < coords.length; i++) {
+            if (i === coords.length - 1 && coords.length === 2) break;
+            
+            let nextIndex = (i + 1) % coords.length;
+            let midLat = (coords[i][0] + coords[nextIndex][0]) / 2;
+            let midLng = (coords[i][1] + coords[nextIndex][1]) / 2;
+
+            const ghost = L.marker([midLat, midLng], { icon: iconGhost, opacity: 0.6 }).addTo(rsMap);
+
+            ghost.on('click', function() {
+                rsSaveState(); 
+                rsGlebasData[gleba].splice(nextIndex, 0, [midLat, midLng, 0.0]);
+                window.rsEditedNodes[gleba].clear();
+                rsRedrawPolygon(gleba);
+                rsDrawEditNodes(gleba); 
+                rsUpdateGlebaInterface(gleba);
+            });
+            window.rsVertexMarkers.push(ghost);
+        }
+    }
+}
 
         // PROCESSADOR ULTRA-ROBUSTO DE COORDENADAS
         function rsParseCoordinateLine(line) {
@@ -21306,108 +21429,127 @@ document.getElementById('rs-btn-download-new').addEventListener('click', async (
         });
 
         // =========================================================================
-        // REGRA DE TOGGLE DO BOTÃO DE ATIVAÇÃO CAD
+// REGRA DE TOGGLE DO BOTÃO DE ATIVAÇÃO CAD (CORRIGIDO)
+// =========================================================================
+document.getElementById('rs-btn-activate-edit').addEventListener('click', function(e) {
+    e.preventDefault();
+    if (!rsActiveGlebaEdit) return;
+
+    // NOVA TRAVA DE SEGURANÇA: Verifica a checkbox na interface HTML, 
+    // e não se a camada gráfica (rsLayersGroup) já existe.
+    const checkbox = document.querySelector(`.rs-layer-toggle[data-gleba="${rsActiveGlebaEdit}"]`);
+    
+    if (checkbox && !checkbox.checked) {
+        alert("Aviso: Ative o checkbox de exibição desta gleba na lista acima para poder ajustar a geometria no mapa.");
+        return;
+    }
+
+    // O Efeito "Interruptor"
+    if (this.dataset.active === "true") {
+        this.dataset.active = "false";
+        this.innerHTML = "🗺️ Ajustar Geometria no Mapa";
+        this.style.backgroundColor = "#f1f5f9";
+        this.style.color = "#475569";
+        rsDrawEditNodes(null); // Desliga os nós do mapa
+        
+        // Desliga a caneta por segurança ao fechar o ajuste
+        const btnDraw = document.getElementById('rs-btn-draw-mode');
+        if (btnDraw) {
+            btnDraw.dataset.drawing = "false";
+            btnDraw.style.backgroundColor = "#f1f5f9";
+            btnDraw.style.borderColor = "var(--ui-border)";
+            btnDraw.style.boxShadow = "none";
+        }
+    } else {
+        this.dataset.active = "true";
+        this.innerHTML = "✅ Modo de Ajuste Ativo";
+        this.style.backgroundColor = "#004C27";
+        this.style.color = "#ffffff";
+        rsDrawEditNodes(rsActiveGlebaEdit); // Liga os nós
+    }
+});
+
         // =========================================================================
-        document.getElementById('rs-btn-activate-edit').addEventListener('click', function(e) {
-            e.preventDefault();
-            if (!rsActiveGlebaEdit) return;
+// BOTÃO LIMPAR TUDO - FAXINA NUCLEAR (MAPA E INTERFACE)
+// =========================================================================
+document.getElementById('rs-btn-clear').addEventListener('click', (e) => {
+    e.preventDefault();
+    
+    if (confirm("Tem certeza que deseja limpar todos os dados do mapa e do painel?")) {
+        
+        // 1. ZERA A MEMÓRIA MATEMÁTICA (Back-end)
+        rsGlebasData = {};
+        rsGlebasColors = {};
+        if (typeof rsRiskData !== 'undefined') rsRiskData = {};
+        window.rsEditedNodes = {};
+        if (typeof rsFixedKmlBlob !== 'undefined') rsFixedKmlBlob = null;
+        rsActiveGlebaEdit = null;
+        window.rsCarPolygon = null;
 
-            if (!rsLayersGroup[rsActiveGlebaEdit]) {
-                alert("Aviso: Ative o checkbox de exibição desta gleba na lista acima para poder ajustar a geometria no mapa.");
-                return;
-            }
+        // 2. LIMPEZA BRUTA DO MAPA (Leaflet)
+        if (rsLayersGroup) Object.keys(rsLayersGroup).forEach(k => rsMap.removeLayer(rsLayersGroup[k]));
+        rsLayersGroup = {};
+        
+        if (typeof rsRiskLayers !== 'undefined') Object.keys(rsRiskLayers).forEach(k => rsMap.removeLayer(rsRiskLayers[k]));
+        if (typeof rsRiskLayers !== 'undefined') rsRiskLayers = {};
+        
+        if (window.rsCarLayer) {
+            rsMap.removeLayer(window.rsCarLayer);
+            window.rsCarLayer = null;
+        }
+        
+        rsDrawEditNodes(null);
 
-            // O Efeito "Interruptor"
-            if (this.dataset.active === "true") {
-                this.dataset.active = "false";
-                this.innerHTML = "🗺️ Ajustar Geometria no Mapa";
-                this.style.backgroundColor = "#f1f5f9";
-                this.style.color = "#475569";
-                rsDrawEditNodes(null); // Desliga os nós do mapa
-            } else {
-                this.dataset.active = "true";
-                this.innerHTML = "✅ Modo de Ajuste Ativo";
-                this.style.backgroundColor = "#004C27";
-                this.style.color = "#ffffff";
-                rsDrawEditNodes(rsActiveGlebaEdit); // Liga os nós
-            }
+        // 3. LIMPEZA FORÇADA DA INTERFACE (Front-end) CORRIGIDA
+        document.getElementById('rs-active-gleba-title').textContent = "[NENHUMA ÁREA SELECIONADA]";
+        document.getElementById('rs-coords-input').value = '';
+        if (document.getElementById('rs-coords-overlay')) document.getElementById('rs-coords-overlay').innerHTML = '';
+        
+        const glebasContainer = document.getElementById('rs-glebas-container');
+        if (glebasContainer) glebasContainer.classList.add('rs-hidden');
+        
+        document.getElementById('rs-glebas-list-group').innerHTML = '<div style="font-size:0.8rem; color:#64748b; padding:8px; text-align:center;">Nenhuma gleba cadastrada...</div>';
+        
+        const riskListGroup = document.getElementById('rs-risk-list-group');
+        if (riskListGroup) riskListGroup.innerHTML = '<div style="font-size:0.8rem; color:#64748b; padding:4px; text-align:center;">Nenhuma restrição importada...</div>';
+        
+        // Esconde o container inteiro, sem destruir o CSS dos botões individuais
+        const containerBotoes = document.getElementById('rs-container-botoes-edit');
+        if (containerBotoes) containerBotoes.style.display = "none";
+        
+        // Reseta os estados visuais dos botões de edição para o padrão
+        const btnActivate = document.getElementById('rs-btn-activate-edit');
+        if (btnActivate) {
+            btnActivate.dataset.active = "false";
+            btnActivate.innerHTML = "🗺️ Ajustar Geometria";
+            btnActivate.style.backgroundColor = "#f1f5f9";
+            btnActivate.style.color = "#475569";
+        }
+        
+        const btnDraw = document.getElementById('rs-btn-draw-mode');
+        if (btnDraw) {
+            btnDraw.dataset.drawing = "false";
+            btnDraw.style.backgroundColor = "#f1f5f9";
+            btnDraw.style.borderColor = "var(--ui-border)";
+            btnDraw.style.boxShadow = "none";
+        }
+        
+        const btnImportCar = document.getElementById('rs-btn-import-car');
+        if (btnImportCar) {
+            btnImportCar.innerHTML = "🗺️ IMPORTAR LIMITE DO CAR OFICIAL";
+            btnImportCar.style.backgroundColor = ""; 
+        }
+
+        // 4. LIMPA OS BUFFERS DE UPLOAD
+        const inputsFiles = ['rs-file-kml', 'rs-file-csv', 'rs-file-farmcheck', 'rs-file-car', 'rs-file-excel'];
+        inputsFiles.forEach(id => {
+            let el = document.getElementById(id);
+            if (el) el.value = '';
         });
 
-        // =========================================================================
-        // BOTÃO LIMPAR TUDO - FAXINA NUCLEAR (MAPA E INTERFACE)
-        // =========================================================================
-        document.getElementById('rs-btn-clear').addEventListener('click', (e) => {
-            e.preventDefault();
-            
-            if (confirm("Tem certeza que deseja limpar todos os dados do mapa e do painel?")) {
-                
-                // 1. ZERA A MEMÓRIA MATEMÁTICA (Back-end)
-                rsGlebasData = {};
-                rsGlebasColors = {};
-                rsRiskData = {};
-                window.rsEditedNodes = {};
-                rsFixedKmlBlob = null;
-                rsActiveGlebaEdit = null;
-                window.rsCarPolygon = null;
-
-                // 2. LIMPEZA BRUTA DO MAPA (Leaflet)
-                // Remove Glebas do projeto
-                if (rsLayersGroup) Object.keys(rsLayersGroup).forEach(k => rsMap.removeLayer(rsLayersGroup[k]));
-                rsLayersGroup = {};
-                
-                // Remove Áreas de Risco
-                if (rsRiskLayers) Object.keys(rsRiskLayers).forEach(k => rsMap.removeLayer(rsRiskLayers[k]));
-                rsRiskLayers = {};
-                
-                // Remove Limite do CAR
-                if (window.rsCarLayer) {
-                    rsMap.removeLayer(window.rsCarLayer);
-                    window.rsCarLayer = null;
-                }
-                
-                // Remove os nós de edição (bolinhas)
-                rsDrawEditNodes(null);
-
-                // 3. LIMPEZA FORÇADA DA INTERFACE (Front-end)
-                // Zera caixas de texto e títulos
-                document.getElementById('rs-active-gleba-title').textContent = "[NENHUMA ÁREA SELECIONADA]";
-                document.getElementById('rs-coords-input').value = '';
-                if (document.getElementById('rs-coords-overlay')) document.getElementById('rs-coords-overlay').innerHTML = '';
-                
-                // Oculta a caixa principal de glebas
-                const glebasContainer = document.getElementById('rs-glebas-container');
-                if (glebasContainer) glebasContainer.classList.add('rs-hidden');
-                
-                // Injeta o HTML vazio nas listas de glebas e restrições
-                document.getElementById('rs-glebas-list-group').innerHTML = '<div style="font-size:0.8rem; color:#64748b; padding:8px; text-align:center;">Nenhuma gleba cadastrada...</div>';
-                document.getElementById('rs-risk-list-group').innerHTML = '<div style="font-size:0.8rem; color:#64748b; padding:4px; text-align:center;">Nenhuma restrição importada...</div>';
-                
-                // Reseta botões e oculta o botão de download antigo
-                const btnDownloadOld = document.getElementById('rs-btn-download-fixed');
-                if (btnDownloadOld) btnDownloadOld.classList.add('rs-hidden');
-                
-                const btnActivate = document.getElementById('rs-btn-activate-edit');
-                if (btnActivate) {
-                    btnActivate.style.display = "none";
-                    btnActivate.dataset.active = "false";
-                }
-                
-                const btnImportCar = document.getElementById('rs-btn-import-car');
-                if (btnImportCar) {
-                    btnImportCar.innerHTML = "🗺️ IMPORTAR LIMITE DO CAR OFICIAL";
-                    btnImportCar.style.backgroundColor = ""; 
-                }
-
-                // 4. LIMPA OS BUFFERS DE UPLOAD (Para permitir importar o mesmo arquivo de novo)
-                const inputsFiles = ['rs-file-kml', 'rs-file-csv', 'rs-file-farmcheck', 'rs-file-car', 'rs-file-excel'];
-                inputsFiles.forEach(id => {
-                    let el = document.getElementById(id);
-                    if (el) el.value = '';
-                });
-
-                alert("✨ Limpeza Concluída.");
-            }
-        });
+        alert("✨ Faxina completa! Memória e mapa totalmente zerados.");
+    }
+});
 
         document.addEventListener('DOMContentLoaded', () => {
             rsInitializeMap();
@@ -21479,6 +21621,87 @@ document.getElementById('rs-btn-extract-xls').addEventListener('click', async (e
     // Dispara a caixa do Windows pedindo caminho de destino
     await rsSalvarArquivoComPrompt(blob, "PLANILHA_COORDENADAS_GEODESICAS.xlsx", 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', ['.xlsx']);
 });
+
+// =========================================================================
+// MÓDULO DE MAPEAMENTO REATIVO (CANETA / DRAW MODE)
+// =========================================================================
+
+// 1. Alternador do Botão Caneta
+document.getElementById('rs-btn-draw-mode').addEventListener('click', function(e) {
+    e.preventDefault();
+    const btnActivate = document.getElementById('rs-btn-activate-edit');
+    
+    // Trava de segurança: A caneta só liga se o modo de Ajuste Geral estiver ligado
+    if (btnActivate.dataset.active !== "true") {
+        alert("Ative primeiro o modo 'Ajustar Geometria' para poder usar a caneta.");
+        return;
+    }
+
+    if (this.dataset.drawing === "false") {
+        this.dataset.drawing = "true";
+        this.style.backgroundColor = "#fef3c7"; // Fundo amarelo alerta
+        this.style.borderColor = "#d97706"; // Borda laranja/amarelo escuro
+        this.style.boxShadow = "inset 0 0 5px rgba(217, 119, 6, 0.3)";
+    } else {
+        this.dataset.drawing = "false";
+        this.style.backgroundColor = "#f1f5f9";
+        this.style.borderColor = "var(--ui-border)";
+        this.style.boxShadow = "none";
+    }
+
+    // TRUQUE VISUAL: Força o redesenho imediato para "abrir" ou "fechar" o polígono
+    if (rsActiveGlebaEdit) {
+        rsRedrawPolygon(rsActiveGlebaEdit);
+    }
+});
+
+// 2. O Escutador do Mapa (Ouvinte Universal)
+// O setTimeout garante que o mapa já foi criado antes de pendurar o ouvinte
+// 2. O Escutador do Mapa (Ouvinte Universal)
+setTimeout(() => {
+    if (rsMap) {
+        rsMap.off('click'); // Previne eventos duplicados se recarregado
+        rsMap.on('click', function(e) {
+            const btnEdit = document.getElementById('rs-btn-activate-edit');
+            const btnDraw = document.getElementById('rs-btn-draw-mode');
+
+            if (rsActiveGlebaEdit && 
+                btnEdit.dataset.active === "true" && 
+                btnDraw.dataset.drawing === "true") {
+                
+                rsSaveState(); 
+
+                let lat = e.latlng.lat;
+                let lng = e.latlng.lng;
+
+                if (!rsGlebasData[rsActiveGlebaEdit]) {
+                    rsGlebasData[rsActiveGlebaEdit] = [];
+                }
+
+                const glebaCoords = rsGlebasData[rsActiveGlebaEdit];
+                
+                // A MÁGICA 3: O ÍMÃ DE FECHAMENTO (SNAP)
+                if (glebaCoords.length > 2) {
+                    const firstPoint = L.latLng(glebaCoords[0][0], glebaCoords[0][1]);
+                    // Mede a distância do clique atual para o primeiro ponto
+                    const distanciaMeters = rsMap.distance(e.latlng, firstPoint);
+                    
+                    // Se estiver a menos de 15 metros, ele gruda no início!
+                    if (distanciaMeters < 15) { 
+                        lat = glebaCoords[0][0];
+                        lng = glebaCoords[0][1];
+                    }
+                }
+
+                rsGlebasData[rsActiveGlebaEdit].push([lat, lng, 0.0]);
+
+                rsRedrawPolygon(rsActiveGlebaEdit);
+                rsDrawEditNodes(rsActiveGlebaEdit);
+                rsSyncTextAndOverlay(rsActiveGlebaEdit);
+            }
+        });
+    }
+}, 1000);
 
 
 </script>
